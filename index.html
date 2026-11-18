@@ -214,9 +214,6 @@
     <div class="flex flex-col items-center">
       <div class="flex items-center gap-2">
         <h1 id="level-title" class="text-lg font-extrabold tracking-tight text-white">Level 1</h1>
-        <span id="wager-active-pill" class="hidden text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
-          2x Wager
-        </span>
       </div>
       <div class="flex items-center gap-2.5 text-[11px] font-bold text-slate-400">
         <span id="hud-stars-display" class="text-amber-400">★ 0</span>
@@ -275,9 +272,6 @@
       </div>
 
       <div class="flex items-center gap-1.5">
-        <button id="btn-wager" class="bg-[#141824] hover:bg-[#1E2130] active:scale-95 transition px-2.5 py-1.5 rounded-xl border border-slate-800/90 text-xs font-extrabold text-amber-400" title="2x Wager: Double Stars & 2x Escape Progress">
-          🔥 2x
-        </button>
         <button id="btn-difficulty" class="bg-[#141824] hover:bg-[#1E2130] active:scale-95 transition px-2.5 py-1.5 rounded-xl border border-slate-800/90 text-xs font-extrabold text-slate-200">
           Normal
         </button>
@@ -1336,7 +1330,6 @@
 
     const elSplashScreen = document.getElementById('splash-screen');
     const elLevelTitle = document.getElementById('level-title');
-    const elWagerActivePill = document.getElementById('wager-active-pill');
     const elHudStarsDisplay = document.getElementById('hud-stars-display');
     const elHudTimerDisplay = document.getElementById('hud-timer-display');
     const elHudBestDisplay = document.getElementById('hud-best-display');
@@ -1348,7 +1341,6 @@
     const elRemainingIconSnake = document.getElementById('remaining-icon-snake');
     const elRemainingIconArrow = document.getElementById('remaining-icon-arrow');
     const elHeartsRow = document.getElementById('hearts-row');
-    const elBtnWager = document.getElementById('btn-wager');
     const elBtnDifficulty = document.getElementById('btn-difficulty');
     const elSettingsToggleDiff = document.getElementById('settings-toggle-difficulty');
     const elSettingsToggleStyle = document.getElementById('settings-toggle-style');
@@ -1389,7 +1381,6 @@
       dailyBestTimeSec: null,
       endlessBestWave: 1,
       levelBestTimes: {},
-      wagerActive: false,
       hasStartedGame: false,
       hearts: 3,
       maxHearts: 3,
@@ -1737,7 +1728,6 @@
           level: state.level,
           maxUnlockedLevel: state.maxUnlockedLevel,
           difficulty: state.difficulty,
-          wagerActive: state.wagerActive,
           hasStartedGame: state.hasStartedGame,
           hearts: state.hearts,
           hints: Math.min(MAX_POWERUP, Math.max(0, state.hints)),
@@ -1783,7 +1773,6 @@
       state.level = savedData.level;
       state.maxUnlockedLevel = Math.max(state.maxUnlockedLevel, savedData.maxUnlockedLevel || savedData.level);
       state.difficulty = savedData.difficulty === 'Hard' ? 'Hard' : 'Normal';
-      state.wagerActive = Boolean(savedData.wagerActive);
       state.hasStartedGame = Boolean(savedData.hasStartedGame);
 
       state.maxHearts = 3;
@@ -1901,7 +1890,6 @@
 
     function startDailyChallenge() {
       state.gameMode = 'daily';
-      state.wagerActive = false;
       state.hasStartedGame = false;
       state.difficulty = 'Normal';
       state.maxHearts = 3;
@@ -1930,7 +1918,6 @@
     function startEndlessMode(waveNum = 1, keepHearts = false) {
       state.gameMode = 'endless';
       state.endlessWave = waveNum;
-      state.wagerActive = false;
       state.hasStartedGame = false;
       state.maxHearts = 3;
       if (!keepHearts) {
@@ -1968,7 +1955,6 @@
       if (levelNum > state.maxUnlockedLevel) {
         state.maxUnlockedLevel = levelNum;
       }
-      state.wagerActive = false;
       state.hasStartedGame = false;
 
       state.maxHearts = 3;
@@ -2081,16 +2067,6 @@
         } else {
           elLevelTitle.textContent = `Level ${state.level}`;
         }
-      }
-
-      if (elWagerActivePill) {
-        elWagerActivePill.classList.toggle('hidden', !state.wagerActive);
-      }
-      if (elBtnWager) {
-        elBtnWager.classList.toggle('border-amber-400', state.wagerActive);
-        elBtnWager.classList.toggle('bg-amber-500/20', state.wagerActive);
-        elBtnWager.classList.toggle('opacity-45', state.gameMode === 'daily' || state.hasStartedGame);
-        elBtnWager.classList.toggle('pointer-events-none', state.gameMode === 'daily' || state.hasStartedGame);
       }
 
       if (elBtnDifficulty) {
@@ -2253,10 +2229,9 @@
           state.screenShakeTimer = Math.min(0.22, 0.08 + state.comboCount * 0.02);
         }
 
-        const progressStep = state.wagerActive ? 2 : 1;
-        state.hintEscapeProgress += progressStep;
-        state.undoEscapeProgress += progressStep;
-        state.rulerEscapeProgress += progressStep;
+        state.hintEscapeProgress += 1;
+        state.undoEscapeProgress += 1;
+        state.rulerEscapeProgress += 1;
 
         const earnedBadges = [];
         if (state.hintEscapeProgress >= 10 && state.difficulty !== 'Hard') {
@@ -2911,8 +2886,7 @@
 
       const clearTimeSec = Math.max(1, Math.floor(state.levelElapsedSec));
       
-      const rawBaseStars = Math.max(1, Math.min(3, state.hearts));
-      const earnedStars = state.wagerActive ? rawBaseStars * 2 : rawBaseStars;
+      const earnedStars = Math.max(1, Math.min(3, state.hearts));
       state.stars += earnedStars;
 
       const baseXp = 40 + (state.board ? state.board.snakes.length * 5 : 30);
@@ -2967,7 +2941,7 @@
       const starsRow = document.getElementById('win-stars-row');
       if (starsRow) {
         starsRow.innerHTML = [1, 2, 3].map(idx =>
-          `<span class="${idx <= rawBaseStars ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'text-slate-700'}">★</span>`
+          `<span class="${idx <= earnedStars ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'text-slate-700'}">★</span>`
         ).join('');
       }
 
@@ -3295,26 +3269,6 @@
     document.getElementById('btn-hint').addEventListener('click', triggerHint);
     document.getElementById('btn-undo').addEventListener('click', triggerUndo);
     document.getElementById('btn-ruler').addEventListener('click', triggerRuler);
-
-    if (elBtnWager) {
-      elBtnWager.addEventListener('click', () => {
-        if (state.gameMode === 'daily') {
-          showToast('Wager disabled in Daily Puzzle!');
-          return;
-        }
-        if (state.hasStartedGame) {
-          showToast('Times two cannot be selected once the game has started!');
-          return;
-        }
-
-        state.wagerActive = !state.wagerActive;
-        // Wager no longer strips hearts!
-        sfx.playHint();
-        updateHUD();
-        saveGame(false);
-        showToast(state.wagerActive ? '🔥 2x Wager ON! (Double Stars & Progress on win)' : '2x Wager OFF');
-      });
-    }
 
     function toggleDifficultyMode() {
       if (state.gameMode === 'daily') {
