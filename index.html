@@ -1,0 +1,3601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Snakes and Arrows</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23090b11'/%3E%3Cpath d='M12 44c6 0 9-8 16-8s9 8 16 8 9-8 10-14c1-5-3-9-8-9-4 0-7 3-7 7' fill='none' stroke='%234ADE80' stroke-width='6' stroke-linecap='round'/%3E%3Ccircle cx='49' cy='21' r='6' fill='%234ADE80'/%3E%3Ccircle cx='51' cy='19' r='1.6' fill='%23ffffff'/%3E%3Ccircle cx='51.5' cy='19' r='0.8' fill='%23090b11'/%3E%3Cpath d='M55 21l6-2.5M55 21l6 2.5' stroke='%23FB7185' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000000;
+      font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #f8fafc;
+    }
+
+    .hearts-row {
+      min-height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .heart-item {
+      color: #FF4757;
+      filter: drop-shadow(0 0 8px rgba(255, 71, 87, 0.5));
+      transition: transform 0.3s ease, color 0.3s ease, filter 0.3s ease;
+    }
+
+    .heart-item.lost {
+      color: #1e293b;
+      filter: none;
+      transform: scale(0.88);
+    }
+
+    #board-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #000000;
+    }
+
+    #game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      touch-action: manipulation;
+      cursor: pointer;
+    }
+
+    .powerup-btn {
+      background: #0f111a;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      border: 1.5px solid #1e2433;
+      transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.16s ease, border-color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .powerup-btn:active {
+      transform: scale(0.92);
+    }
+
+    .powerup-btn.active-tool {
+      border-color: #818cf8;
+      background: #171b2e;
+      box-shadow: 0 0 22px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+
+    .splash-card {
+      background: #0d1018;
+      border: 2px solid #1e2536;
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .splash-card:active {
+      transform: scale(0.96);
+    }
+
+    .splash-card.selected {
+      border-color: #38bdf8;
+      background: #121a2b;
+      box-shadow: 0 0 24px rgba(56, 189, 248, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .splash-card.locked {
+      opacity: 0.72;
+      border-color: #1e293b;
+    }
+
+    @keyframes heartLose {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.35) rotate(-12deg); }
+      60% { transform: scale(0.8) rotate(8deg); }
+      100% { transform: scale(0.88); }
+    }
+    .heart-lost-anim {
+      animation: heartLose 0.45s ease-out;
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.85) translateY(10px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .modal-pop {
+      animation: popIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes comboPop {
+      0% { opacity: 0; transform: translate(-50%, 10px) scale(0.75); }
+      20% { opacity: 1; transform: translate(-50%, 0px) scale(1.1); }
+      80% { opacity: 1; transform: translate(-50%, -6px) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -18px) scale(0.92); }
+    }
+    .combo-anim {
+      animation: comboPop 1.1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body class="flex flex-col h-full w-full bg-black text-slate-100">
+
+  <!-- STARTUP HUB & CUSTOMIZATION SCREEN -->
+  <div id="splash-screen" class="fixed inset-0 z-50 bg-[#090b11] flex flex-col justify-between items-center select-none overflow-hidden py-8 px-4">
+    <div class="absolute inset-0 z-0 flex items-center justify-center overflow-hidden pointer-events-none">
+      <div class="absolute w-[500px] h-[500px] bg-sky-500/10 rounded-full blur-3xl animate-pulse"></div>
+      <div class="absolute w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-3xl" style="animation: pulse 4s infinite;"></div>
+    </div>
+    
+    <div id="splash-fallback" class="relative z-10 flex flex-col items-center text-center max-w-sm pt-2">
+      <div class="w-16 h-16 mb-3 rounded-2xl bg-gradient-to-br from-emerald-400 to-sky-500 p-1 shadow-xl shadow-emerald-500/20 flex items-center justify-center">
+        <div class="w-full h-full bg-[#090b11] rounded-[14px] flex items-center justify-center">
+          <svg class="w-8 h-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 17c2.5 0 3.5-3 6-3s3.5 3 6 3 3.5-3 4-5.5c.4-2-1-3.5-3-3.5-1.5 0-2.5 1-2.5 2.5" />
+            <circle cx="18.2" cy="7.5" r="0.9" fill="currentColor" stroke="none" />
+          </svg>
+        </div>
+      </div>
+      <h1 class="text-2xl font-black tracking-tight text-white mb-1">Snakes & Arrows</h1>
+      <p class="text-[11px] font-bold text-slate-400">Untangle the grid and guide every serpent free.</p>
+    </div>
+
+    <img src="splash.jpg" alt="Snakes and Arrows" class="absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-500 pointer-events-none" id="splash-image" onerror="this.style.display='none';" onload="this.style.display='block';" />
+
+    <div class="relative z-30 w-full max-w-sm space-y-2.5 pb-4">
+      <button id="splash-btn-campaign" class="w-full splash-card rounded-2xl p-3.5 flex items-center justify-between text-left shadow-lg">
+        <div>
+          <div class="text-sm font-black text-white flex items-center gap-2">
+            <span>🎮</span> Campaign Mode
+          </div>
+          <div class="text-[10px] font-semibold text-slate-400 mt-0.5">Progressive puzzle levels & XP</div>
+        </div>
+        <span class="text-xs font-black text-sky-400 bg-sky-500/15 px-3 py-1.5 rounded-xl border border-sky-400/30">Play</span>
+      </button>
+
+      <button id="splash-btn-daily" class="w-full splash-card rounded-2xl p-3.5 flex items-center justify-between text-left shadow-lg">
+        <div>
+          <div class="text-sm font-black text-amber-300 flex items-center gap-2">
+            <span>📅</span> Daily Puzzle
+          </div>
+          <div class="text-[10px] font-semibold text-slate-400 mt-0.5">Fresh daily challenge & streak</div>
+        </div>
+        <span class="text-xs font-black text-amber-300 bg-amber-500/15 px-3 py-1.5 rounded-xl border border-amber-400/30">Start</span>
+      </button>
+
+      <button id="splash-btn-endless" class="w-full splash-card rounded-2xl p-3.5 flex items-center justify-between text-left shadow-lg">
+        <div>
+          <div class="text-sm font-black text-emerald-300 flex items-center gap-2">
+            <span>♾️</span> Endless Survival
+          </div>
+          <div class="text-[10px] font-semibold text-slate-400 mt-0.5">Infinite survival waves & testing</div>
+        </div>
+        <span class="text-xs font-black text-emerald-300 bg-emerald-500/15 px-3 py-1.5 rounded-xl border border-emerald-400/30">Survival</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="w-full max-w-xl mx-auto px-3 pt-2.5 pb-1 flex items-center justify-between shrink-0 z-10">
+    <button id="btn-levels" aria-label="Select Level or Mode" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 active:bg-white/15 transition text-sky-400">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+      </svg>
+    </button>
+
+    <div class="flex flex-col items-center">
+      <div class="flex items-center gap-2">
+        <h1 id="level-title" class="text-lg font-extrabold tracking-tight text-white">Level 1</h1>
+        <span id="wager-active-pill" class="hidden text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40">
+          2x Wager
+        </span>
+      </div>
+      <div class="flex items-center gap-2.5 text-[11px] font-bold text-slate-400">
+        <span id="hud-stars-display" class="text-amber-400">★ 0</span>
+        <span>•</span>
+        <span id="hud-timer-display" class="tabular-nums">00:00</span>
+        <span id="hud-best-display" class="hidden text-emerald-400">• Best: --</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-1">
+      <button id="btn-shop-nav" aria-label="Shop" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 active:bg-white/15 transition text-amber-400" title="Shop & Skins">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+        </svg>
+      </button>
+      <button id="btn-settings" aria-label="Settings" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 active:bg-white/15 transition text-sky-400">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l-.214-1.281z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- SUB-HEADER STATUS BAR & XP PROGRESS BAR -->
+  <section class="w-full max-w-xl mx-auto px-3 py-1.5 flex flex-col gap-1.5 shrink-0 z-10">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2 bg-[#141824] px-3 py-1.5 rounded-xl border border-slate-800/90 shadow-inner" title="Remaining Pieces">
+        <svg id="remaining-icon-snake" class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 17c2.5 0 3.5-3 6-3s3.5 3 6 3 3.5-3 4-5.5c.4-2-1-3.5-3-3.5-1.5 0-2.5 1-2.5 2.5" />
+          <circle cx="18.2" cy="7.5" r="0.9" fill="currentColor" stroke="none" />
+        </svg>
+        <svg id="remaining-icon-arrow" class="hidden w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14" />
+          <path d="M13 6l6 6-6 6" />
+        </svg>
+        <span id="remaining-count" class="text-sm font-extrabold text-slate-200 tabular-nums">12</span>
+      </div>
+
+      <div class="hearts-row" id="hearts-row">
+        <div class="heart-item" data-heart-index="0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+          </svg>
+        </div>
+        <div class="heart-item" data-heart-index="1">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+          </svg>
+        </div>
+        <div class="heart-item" data-heart-index="2">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button id="btn-wager" class="bg-[#141824] hover:bg-[#1E2130] active:scale-95 transition px-2.5 py-1.5 rounded-xl border border-slate-800/90 text-xs font-extrabold text-amber-400" title="2x Wager: Double Stars & 2x Escape Progress">
+          🔥 2x
+        </button>
+        <button id="btn-difficulty" class="bg-[#141824] hover:bg-[#1E2130] active:scale-95 transition px-2.5 py-1.5 rounded-xl border border-slate-800/90 text-xs font-extrabold text-slate-200">
+          Normal
+        </button>
+      </div>
+    </div>
+
+    <!-- XP Bar Container -->
+    <div class="w-full bg-[#101420] border border-slate-800/90 rounded-xl p-1.5 flex items-center gap-2 shadow-inner">
+      <span id="hud-xp-level-label" class="text-[10px] font-black uppercase tracking-wider text-sky-400 shrink-0">Rank 1</span>
+      <div class="flex-1 h-2 bg-slate-900 rounded-full overflow-hidden relative border border-slate-800">
+        <div id="hud-xp-fill" class="h-full bg-gradient-to-r from-sky-500 to-emerald-400 rounded-full transition-all duration-500" style="width: 0%;"></div>
+      </div>
+      <span id="hud-xp-text" class="text-[10px] font-extrabold text-slate-400 shrink-0 tabular-nums">0/100 XP</span>
+    </div>
+  </section>
+
+  <!-- MAIN GAME CANVAS CONTAINER -->
+  <main id="board-wrap" class="max-w-2xl mx-auto px-2 py-1">
+    <canvas id="game-canvas"></canvas>
+
+    <div id="combo-banner" class="pointer-events-none hidden absolute top-11 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 font-black text-xs tracking-wide shadow-lg z-20">
+      2x CASCADE!
+    </div>
+
+    <div id="toast" class="pointer-events-none opacity-0 transition-opacity duration-200 absolute top-2.5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-slate-100 border border-slate-700/80 text-xs font-bold px-3.5 py-1.5 rounded-full shadow-xl whitespace-nowrap z-20">
+      Path is blocked!
+    </div>
+  </main>
+
+  <!-- BOTTOM POWER-UP DOCK -->
+  <footer class="w-full bg-gradient-to-t from-[#090a0f] to-black border-t border-slate-900 pt-2 pb-4 px-4 flex items-center justify-center gap-6 shrink-0 z-10">
+    <button id="btn-hint" class="powerup-btn relative w-15 h-15 p-3.5 rounded-full flex items-center justify-center" title="Highlight a clear path for 1 turn (Max 3)">
+      <svg class="w-7 h-7" viewBox="0 0 36 36" fill="none">
+        <path d="M18 4C11.925 4 7 8.925 7 15C7 18.88 9.01 22.29 12.05 24.25C12.64 24.63 13 25.28 13 25.98V27H23V25.98C23 25.28 23.36 24.63 23.95 24.25C26.99 22.29 29 18.88 29 15C29 8.925 24.075 4 18 4Z" fill="url(#bulbGrad)" stroke="#F59E0B" stroke-width="1.5"/>
+        <path d="M14 27H22V29.5C22 30.328 21.328 31 20.5 31H15.5C14.672 31 14 30.328 14 29.5V27Z" fill="#94A3B8"/>
+        <path d="M15.5 31H20.5L19.5 32.5C19.2 32.8 18.8 33 18.3 33H17.7C17.2 33 16.8 32.8 16.5 32.5L15.5 31Z" fill="#64748B"/>
+        <path d="M13 13C13.5 10.5 15.5 8.5 18 8.5" stroke="#FEF9C3" stroke-width="2.2" stroke-linecap="round"/>
+        <defs>
+          <linearGradient id="bulbGrad" x1="12" y1="5" x2="24" y2="27" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FDE047"/>
+            <stop offset="1" stop-color="#F59E0B"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <span id="hint-badge" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-sky-500 text-white text-[11px] font-extrabold flex items-center justify-center shadow-md border-2 border-black">
+        2
+      </span>
+    </button>
+
+    <button id="btn-undo" class="powerup-btn relative w-15 h-15 p-3.5 rounded-full flex items-center justify-center" title="Undo last piece release or mis-tap (Max 3)">
+      <svg class="w-7 h-7" viewBox="0 0 36 36" fill="none">
+        <path d="M14 9L7 16L14 23" stroke="#34D399" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 16H21C25.418 16 29 19.582 29 24C29 26.5 27.8 28.7 26 30" stroke="#10B981" stroke-width="3.2" stroke-linecap="round"/>
+      </svg>
+      <span id="undo-badge" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-slate-950 text-[11px] font-extrabold flex items-center justify-center shadow-md border-2 border-black">
+        2
+      </span>
+    </button>
+
+    <button id="btn-ruler" class="powerup-btn relative w-15 h-15 p-3.5 rounded-full flex items-center justify-center" title="Show sightlines for 1 turn (Max 3)">
+      <svg class="w-7 h-7" viewBox="0 0 36 36" fill="none">
+        <g transform="rotate(-35 18 18)">
+          <rect x="12" y="3" width="12" height="30" rx="2.5" fill="url(#rulerGrad)" stroke="#4F46E5" stroke-width="1.5"/>
+          <line x1="12" y1="8" x2="16" y2="8" stroke="#E0E7FF" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="12" y1="12" x2="15" y2="12" stroke="#E0E7FF" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="12" y1="16" x2="17" y2="16" stroke="#E0E7FF" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="12" y1="20" x2="15" y2="20" stroke="#E0E7FF" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="12" y1="24" x2="16" y2="24" stroke="#E0E7FF" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="12" y1="28" x2="15" y2="28" stroke="#E0E7FF" stroke-width="1.6" stroke-linecap="round"/>
+        </g>
+        <defs>
+          <linearGradient id="rulerGrad" x1="12" y1="3" x2="24" y2="33" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#818CF8"/>
+            <stop offset="1" stop-color="#4F46E5"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <span id="ruler-badge" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-sky-500 text-white text-[11px] font-extrabold flex items-center justify-center shadow-md border-2 border-black">
+        2
+      </span>
+      <span id="ruler-status-dot" class="hidden absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-black"></span>
+    </button>
+  </footer>
+
+  <!-- MODAL: LEVEL COMPLETE -->
+  <div id="modal-win" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="modal-pop bg-[#0f121a] rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl border border-slate-800">
+      <div id="win-stars-row" class="flex items-center justify-center gap-2 mb-2 text-3xl">
+        <span>★</span><span>★</span><span>★</span>
+      </div>
+      <h2 id="win-title" class="text-2xl font-black text-white mb-1">Level Cleared!</h2>
+      <p id="win-subtitle" class="text-xs font-bold text-slate-400 mb-3">Every piece slithered free.</p>
+      <div id="win-stats-pill" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-xs font-extrabold text-sky-300 mb-3">
+        ⏱ 00:14 • +3 ★ • +50 XP
+      </div>
+      <div id="win-rewards" class="grid grid-cols-3 gap-2 mb-5"></div>
+      <button id="btn-next-level" class="w-full py-3.5 rounded-2xl bg-sky-500 hover:bg-sky-400 active:scale-95 transition text-slate-950 font-extrabold text-base shadow-lg shadow-sky-500/25">
+        Next Level
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: GAME OVER -->
+  <div id="modal-lose" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="modal-pop bg-[#0f121a] rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl border border-slate-800">
+      <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center">
+        <svg class="w-9 h-9" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+        </svg>
+      </div>
+      <h2 id="lose-title" class="text-2xl font-black text-white mb-1">Out of Hearts!</h2>
+      <p id="lose-subtitle" class="text-sm font-semibold text-slate-400 mb-5">Check where each piece is looking before tapping it.</p>
+      <button id="btn-retry" class="w-full py-3.5 rounded-2xl bg-rose-500 hover:bg-rose-400 active:scale-95 transition text-white font-extrabold text-base shadow-lg shadow-rose-500/25">
+        Try Again
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: SETTINGS -->
+  <div id="modal-settings" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="modal-pop bg-[#0f121a] rounded-3xl max-w-xs w-full p-6 shadow-2xl border border-slate-800 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-black text-white">Settings</h2>
+        <button id="btn-close-settings" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold hover:bg-slate-700">✕</button>
+      </div>
+
+      <div class="space-y-3.5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-extrabold text-slate-200 text-sm">Piece Skin</p>
+            <p class="text-xs text-slate-500 font-semibold">Cycle unlocked skins</p>
+          </div>
+          <button id="settings-toggle-style" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-extrabold text-xs transition">
+            Emerald Matrix
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-extrabold text-slate-200 text-sm">Theme Palette</p>
+            <p class="text-xs text-slate-500 font-semibold">Cycle unlocked themes</p>
+          </div>
+          <button id="settings-toggle-palette" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-extrabold text-xs transition">
+            Neon Color
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-extrabold text-slate-200 text-sm">Difficulty Mode</p>
+            <p class="text-xs text-slate-500 font-semibold">Switch between Normal & Hard</p>
+          </div>
+          <button id="settings-toggle-difficulty" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-extrabold text-xs transition">
+            Normal
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-extrabold text-slate-200 text-sm">Sound Effects</p>
+            <p class="text-xs text-slate-500 font-semibold">Cascade chimes, hiss & clear fanfare</p>
+          </div>
+          <button id="toggle-sound" class="w-12 h-7 rounded-full bg-sky-500 p-1 transition-colors flex items-center justify-end">
+            <span class="w-5 h-5 rounded-full bg-white shadow-sm block"></span>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-extrabold text-slate-200 text-sm">Vibration & Shake</p>
+            <p class="text-xs text-slate-500 font-semibold">Haptic bump feedback on blocked tap</p>
+          </div>
+          <button id="toggle-vibe" class="w-12 h-7 rounded-full bg-sky-500 p-1 transition-colors flex items-center justify-end">
+            <span class="w-5 h-5 rounded-full bg-white shadow-sm block"></span>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-extrabold text-slate-200 text-sm">Empty Grid Dots</p>
+            <p class="text-xs text-slate-500 font-semibold">Show subtle dots on vacated cells</p>
+          </div>
+          <button id="toggle-dots" class="w-12 h-7 rounded-full bg-sky-500 p-1 transition-colors flex items-center justify-end">
+            <span class="w-5 h-5 rounded-full bg-white shadow-sm block"></span>
+          </button>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 space-y-2">
+          <button id="btn-manual-save" class="w-full py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-extrabold text-sm transition flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-8H7v8M7 3v5h8" />
+            </svg>
+            <span id="btn-manual-save-label">Save Progress</span>
+          </button>
+          <button id="btn-restart-level" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-sm transition">
+            Restart Current Level
+          </button>
+          <button id="btn-clear-save" class="w-full py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs transition">
+            Reset All Progress
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SHOP & SKINS -->
+  <div id="modal-shop" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="modal-pop bg-[#0f121a] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-800 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🛍️</span>
+          <h2 class="text-xl font-black text-white">Shop & Skins</h2>
+        </div>
+        <button id="btn-close-shop" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold hover:bg-slate-700">✕</button>
+      </div>
+
+      <div class="flex items-center justify-between mb-4 bg-amber-500/10 border border-amber-500/30 px-3 py-2 rounded-2xl">
+        <span class="text-xs font-bold text-amber-300">Available Stars:</span>
+        <div class="flex items-center gap-1 bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-400/30">
+          <span class="text-amber-400 text-xs">★</span>
+          <span id="shop-stars-count" class="text-xs font-black text-amber-300 tabular-nums">0</span>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">Piece Skins</p>
+          <div id="shop-skin-cards-grid" class="space-y-2"></div>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">Theme Palettes</p>
+          <div id="shop-palette-cards-grid" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LEVEL & MODE SELECTOR -->
+  <div id="modal-levels" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="modal-pop bg-[#0f121a] rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-800">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-black text-white">Levels & Modes</h2>
+        <button id="btn-close-levels" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold hover:bg-slate-700">✕</button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <button id="drawer-btn-daily" class="p-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/35 text-left transition">
+          <div class="text-xs font-black text-amber-300">📅 Daily Puzzle</div>
+          <div id="drawer-daily-best" class="text-[10px] font-bold text-amber-200/75 mt-0.5">Streak: 0d • Best: --</div>
+        </button>
+        <button id="drawer-btn-endless" class="p-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/35 text-left transition">
+          <div class="text-xs font-black text-emerald-300">♾️ Endless Mode</div>
+          <div id="drawer-endless-best" class="text-[10px] font-bold text-emerald-200/75 mt-0.5">Personal Best: Wave 1</div>
+        </button>
+      </div>
+
+      <div id="resume-save-container" class="hidden mb-3"></div>
+      <div id="levels-grid" class="grid grid-cols-5 gap-2 max-h-64 overflow-y-auto p-1"></div>
+    </div>
+  </div>
+
+  <script>
+    const memoryStorage = new Map();
+
+    function safeGetStorage(key) {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const val = window.localStorage.getItem(key);
+          if (val !== null) return val;
+        }
+      } catch (e) {}
+      return memoryStorage.has(key) ? memoryStorage.get(key) : null;
+    }
+
+    function safeSetStorage(key, value) {
+      memoryStorage.set(key, String(value));
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(key, String(value));
+        }
+      } catch (e) {}
+    }
+
+    function safeRemoveStorage(key) {
+      memoryStorage.delete(key);
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem(key);
+        }
+      } catch (e) {}
+    }
+
+    let activeRng = Math.random;
+
+    function createMulberry32(seed) {
+      let a = seed >>> 0;
+      return function () {
+        a |= 0;
+        a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function hashDateSeed(dateStr) {
+      let h = 2166136261;
+      for (let i = 0; i < dateStr.length; i++) {
+        h ^= dateStr.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function getTodayDateString() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function getYesterdayDateString() {
+      const d = new Date(Date.now() - 86400000);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function formatDurationSec(sec) {
+      const s = Math.max(0, Math.floor(sec || 0));
+      const mins = Math.floor(s / 60);
+      const rem = s % 60;
+      return `${String(mins).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+    }
+
+    const SKIN_CATALOG = [
+      { id: 'emerald', name: 'Emerald Matrix', desc: 'Vibrant emerald serpents', cost: 0 },
+      { id: 'snakes', name: 'Classic Snakes', desc: 'Standard serpents', cost: 10 },
+      { id: 'arrows', name: 'Arrows', desc: 'Clean vectors', cost: 15 },
+      { id: 'dragons', name: 'Cyber Dragons', desc: 'Horned neon beasts', cost: 25 },
+      { id: 'lasers', name: 'Laser Bolts', desc: 'Glowing energy beams', cost: 35 }
+    ];
+
+    const PALETTE_CATALOG = {
+      color: {
+        id: 'color',
+        name: 'Neon Color',
+        cost: 0,
+        colors: ['#38BDF8', '#4ADE80', '#FB7185', '#FBBF24', '#C084FC', '#2DD4BF', '#FB923C', '#A3E635', '#F472B6', '#60A5FA']
+      },
+      bw: {
+        id: 'bw',
+        name: 'Monochrome',
+        cost: 0,
+        colors: ['#FFFFFF', '#CBD5E1', '#94A3B8', '#E2E8F0', '#64748B']
+      },
+      synthwave: {
+        id: 'synthwave',
+        name: 'Synthwave',
+        cost: 12,
+        colors: ['#FF2A85', '#00F5D4', '#FEE440', '#9B5DE5', '#00BBF9', '#FF6B6B', '#F15BB5', '#4CC9F0']
+      },
+      pastel: {
+        id: 'pastel',
+        name: 'Pastel Candy',
+        cost: 20,
+        colors: ['#F9A8D4', '#93C5FD', '#86EFAC', '#FDE047', '#D8B4FE', '#FDBA74', '#5EEAD4', '#FCA5A5']
+      },
+      matrix: {
+        id: 'matrix',
+        name: 'Stripy B&W',
+        cost: 25,
+        colors: ['#FFFFFF', '#18181B', '#E4E4E7', '#27272A', '#FAFAFA', '#09090B', '#D4D4D8', '#3F3F46']
+      }
+    };
+
+    const RANK_TIERS = [
+      { minLevel: 1, title: 'Novice Tangler' },
+      { minLevel: 10, title: 'Knot Apprentice' },
+      { minLevel: 25, title: 'Serpent Whisperer' },
+      { minLevel: 50, title: 'Coil Tactician' },
+      { minLevel: 100, title: 'Grandmaster of Knots' },
+      { minLevel: 150, title: 'Mythic Unraveler' }
+    ];
+
+    function getPlayerRank(maxLvl) {
+      let current = RANK_TIERS[0].title;
+      for (const tier of RANK_TIERS) {
+        if (maxLvl >= tier.minLevel) current = tier.title;
+      }
+      return current;
+    }
+
+    function getActivePaletteColors() {
+      const pal = PALETTE_CATALOG[state.paletteMode] || PALETTE_CATALOG.color;
+      return pal.colors;
+    }
+
+    function getDisplayColor(snake, colorIndex = 0) {
+      const colors = getActivePaletteColors();
+      const idx = typeof snake.colorSlot === 'number'
+        ? snake.colorSlot % colors.length
+        : (Math.abs((snake.id || 1) - 1 + colorIndex) % colors.length);
+      return colors[idx];
+    }
+
+    class SoundEffects {
+      constructor() {
+        this.enabled = true;
+        this.ctx = null;
+      }
+
+      init() {
+        if (!this.enabled) return;
+        try {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        } catch (e) {}
+      }
+
+      playSlide(comboIndex = 0) {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
+          const baseFreq = pentatonic[Math.min(comboIndex, pentatonic.length - 1)];
+
+          osc.type = comboIndex >= 3 ? 'triangle' : 'sine';
+          osc.frequency.setValueAtTime(baseFreq, now);
+          osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.65, now + 0.16);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.15, now + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.21);
+        } catch (e) {}
+      }
+
+      playBump() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.exponentialRampToValueAtTime(62, now + 0.22);
+
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } catch (e) {}
+      }
+
+      playHint() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [587.33, 880].forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+            gain.gain.setValueAtTime(0.001, now + idx * 0.08);
+            gain.gain.linearRampToValueAtTime(0.14, now + idx * 0.08 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.28);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.08);
+            osc.stop(now + idx * 0.08 + 0.3);
+          });
+        } catch (e) {}
+      }
+
+      playWin() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + i * 0.09);
+            gain.gain.setValueAtTime(0.001, now + i * 0.09);
+            gain.gain.linearRampToValueAtTime(0.16, now + i * 0.09 + 0.025);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.38);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.09);
+            osc.stop(now + i * 0.09 + 0.4);
+          });
+        } catch (e) {}
+      }
+    }
+
+    const sfx = new SoundEffects();
+
+    const DIRS = [
+      { dx: 0, dy: -1, name: 'U' },
+      { dx: 0, dy: 1, name: 'D' },
+      { dx: -1, dy: 0, name: 'L' },
+      { dx: 1, dy: 0, name: 'R' }
+    ];
+
+    function getLevelDifficultyParams(levelNum, difficulty) {
+      const isHard = difficulty === 'Hard';
+      const lvl = Math.max(1, Number(levelNum) || 1);
+
+      let cols;
+      let rows;
+      if (lvl <= 50) {
+        const t50 = (lvl - 1) / 49;
+        cols = Math.min(15, 7 + Math.round(t50 * 8));
+        rows = Math.min(15, 7 + Math.floor(t50 * 8 + 0.35));
+      } else if (lvl <= 100) {
+        const t100 = (lvl - 50) / 50;
+        cols = Math.min(20, 15 + Math.round(t100 * 5));
+        rows = Math.min(20, 15 + Math.floor(t100 * 5 + 0.35));
+      } else {
+        cols = 20;
+        rows = 20;
+      }
+
+      if (isHard) {
+        cols = Math.min(21, cols + 1);
+        rows = Math.min(21, rows + 1);
+      }
+
+      let minSnakeLen = 3;
+      if (lvl >= 120) {
+        minSnakeLen = isHard ? 13 : 12;
+      } else if (lvl >= 100) {
+        minSnakeLen = isHard ? 11 : 10;
+      } else if (lvl >= 75) {
+        minSnakeLen = isHard ? 9 : 8;
+      } else if (lvl >= 50) {
+        minSnakeLen = isHard ? 7 : 6;
+      } else if (lvl >= 35) {
+        minSnakeLen = isHard ? 6 : 5;
+      } else if (lvl >= 20) {
+        minSnakeLen = isHard ? 5 : 4;
+      } else {
+        minSnakeLen = isHard ? 4 : 3;
+      }
+
+      const maxSnakeLen = Math.min(
+        Math.max(minSnakeLen + 5, 8 + Math.floor(lvl / 3) + (isHard ? 3 : 0)),
+        Math.min(rows * cols - 4, 26)
+      );
+
+      const progressMid = Math.min(1, (lvl - 1) / 49);
+      const progressHigh = Math.min(1, (lvl - 1) / 99);
+      const turnWeight = 1.45 + progressHigh * 2.4 + Math.max(0, (lvl - 100) * 0.02) + (isHard ? 0.65 : 0);
+      const rayOverlapAllowance = 0.22 + progressMid * 0.78 + (isHard ? 0.25 : 0);
+      const candidateRuns = lvl >= 75 ? 7 : (lvl >= 35 ? 10 : 12);
+
+      return {
+        cols,
+        rows,
+        minSnakeLen,
+        maxSnakeLen,
+        turnWeight,
+        rayOverlapAllowance,
+        candidateRuns
+      };
+    }
+
+    function hasValidNeckAlignment(snake) {
+      if (!snake || !Array.isArray(snake.cells) || snake.cells.length < 2 || !snake.dir) return false;
+      const head = snake.cells[snake.cells.length - 1];
+      const neck = snake.cells[snake.cells.length - 2];
+      return (head.x - neck.x === snake.dir.dx) && (head.y - neck.y === snake.dir.dy);
+    }
+
+    function evaluateBoardSolvability(snakes, rows, cols, minRequiredLen = 2) {
+      if (!Array.isArray(snakes) || snakes.length === 0) return null;
+      for (const s of snakes) {
+        if (!s || !Array.isArray(s.cells) || s.cells.length < minRequiredLen) return null;
+        if (!hasValidNeckAlignment(s)) return null;
+      }
+
+      const remaining = new Set(snakes.map(s => s.id));
+      const snakeMap = new Map(snakes.map(s => [s.id, s]));
+      const occ = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+      for (const s of snakes) {
+        for (const c of s.cells) {
+          if (c.x < 0 || c.x >= cols || c.y < 0 || c.y >= rows) return null;
+          if (occ[c.y][c.x] !== 0) return null;
+          occ[c.y][c.x] = s.id;
+        }
+      }
+
+      let waves = 0;
+      let firstWaveClearCount = 0;
+
+      while (remaining.size > 0) {
+        const clearThisWave = [];
+        for (const id of remaining) {
+          const s = snakeMap.get(id);
+          const head = s.cells[s.cells.length - 1];
+          let cx = head.x + s.dir.dx;
+          let cy = head.y + s.dir.dy;
+          let clear = true;
+          while (cx >= 0 && cx < cols && cy >= 0 && cy < rows) {
+            if (occ[cy][cx] !== 0) {
+              clear = false;
+              break;
+            }
+            cx += s.dir.dx;
+            cy += s.dir.dy;
+          }
+          if (clear) clearThisWave.push(s);
+        }
+
+        if (clearThisWave.length === 0) return null;
+        if (waves === 0) firstWaveClearCount = clearThisWave.length;
+
+        for (const s of clearThisWave) {
+          for (const c of s.cells) occ[c.y][c.x] = 0;
+          remaining.delete(s.id);
+        }
+        waves++;
+      }
+
+      return { solvable: true, waves, firstWaveClearCount };
+    }
+
+    function verifyBoardSolvable(snakes, rows, cols, minRequiredLen = 2) {
+      return evaluateBoardSolvability(snakes, rows, cols, minRequiredLen) !== null;
+    }
+
+    function assignSnakeColors(snakes, rows, cols) {
+      const cellOwner = Array.from({ length: rows }, () => Array(cols).fill(0));
+      for (const s of snakes) {
+        for (const c of s.cells) {
+          if (c.y >= 0 && c.y < rows && c.x >= 0 && c.x < cols) {
+            cellOwner[c.y][c.x] = s.id;
+          }
+        }
+      }
+
+      const adj = new Map();
+      for (const s of snakes) adj.set(s.id, new Set());
+
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const idA = cellOwner[y][x];
+          if (!idA) continue;
+          const neighbors = [
+            [x + 1, y],
+            [x, y + 1]
+          ];
+          for (const [nx, ny] of neighbors) {
+            if (nx < cols && ny < rows) {
+              const idB = cellOwner[ny][nx];
+              if (idB && idB !== idA) {
+                adj.get(idA).add(idB);
+                adj.get(idB).add(idA);
+              }
+            }
+          }
+        }
+      }
+
+      const assignedSlot = new Map();
+      const sorted = [...snakes].sort((a, b) => adj.get(b.id).size - adj.get(a.id).size);
+      for (let i = 0; i < sorted.length; i++) {
+        const s = sorted[i];
+        const usedSlots = new Set();
+        for (const nid of adj.get(s.id)) {
+          if (assignedSlot.has(nid)) usedSlots.add(assignedSlot.get(nid));
+        }
+
+        let chosenSlot = null;
+        for (let idx = 0; idx < 10; idx++) {
+          const cand = (idx + i) % 10;
+          if (!usedSlots.has(cand)) {
+            chosenSlot = cand;
+            break;
+          }
+        }
+        if (chosenSlot === null) chosenSlot = i % 10;
+        assignedSlot.set(s.id, chosenSlot);
+        s.colorSlot = chosenSlot;
+      }
+    }
+
+    function createFallbackBoard(levelNum, difficulty) {
+      const params = getLevelDifficultyParams(levelNum, difficulty);
+      const rows = params.rows;
+      const cols = params.cols;
+      const snakes = [];
+      let id = 1;
+
+      for (let y = 0; y < rows; y++) {
+        const goRight = y % 2 === 0;
+        const leftLen = Math.max(2, Math.floor(cols / 2) + (y % 2));
+        const rightLen = cols - leftLen;
+
+        if (rightLen >= 2) {
+          const leftCells = [];
+          const rightCells = [];
+          if (goRight) {
+            for (let x = cols - leftLen; x < cols; x++) leftCells.push({ x, y });
+            for (let x = cols - leftLen - 1; x >= 0; x--) rightCells.push({ x, y });
+            snakes.push({ id: id++, cells: leftCells, dir: { dx: 1, dy: 0, name: 'R' }, colorSlot: 0, state: 'idle', animProgress: 0, shakeTimer: 0, hintPulse: 0 });
+            snakes.push({ id: id++, cells: rightCells, dir: { dx: -1, dy: 0, name: 'L' }, colorSlot: 1, state: 'idle', animProgress: 0, shakeTimer: 0, hintPulse: 0 });
+          } else {
+            for (let x = leftLen - 1; x >= 0; x--) leftCells.push({ x, y });
+            for (let x = leftLen; x < cols; x++) rightCells.push({ x, y });
+            snakes.push({ id: id++, cells: leftCells, dir: { dx: -1, dy: 0, name: 'L' }, colorSlot: 2, state: 'idle', animProgress: 0, shakeTimer: 0, hintPulse: 0 });
+            snakes.push({ id: id++, cells: rightCells, dir: { dx: 1, dy: 0, name: 'R' }, colorSlot: 3, state: 'idle', animProgress: 0, shakeTimer: 0, hintPulse: 0 });
+          }
+        } else {
+          const fullCells = [];
+          if (goRight) {
+            for (let x = 0; x < cols; x++) fullCells.push({ x, y });
+            snakes.push({ id: id++, cells: fullCells, dir: { dx: 1, dy: 0, name: 'R' }, colorSlot: 0, state: 'idle', animProgress: 0, shakeTimer: 0, hintPulse: 0 });
+          } else {
+            for (let x = cols - 1; x >= 0; x--) fullCells.push({ x, y });
+            snakes.push({ id: id++, cells: fullCells, dir: { dx: -1, dy: 0, name: 'L' }, colorSlot: 1, state: 'idle', animProgress: 0, shakeTimer: 0, hintPulse: 0 });
+          }
+        }
+      }
+      assignSnakeColors(snakes, rows, cols);
+      return { level: levelNum, difficulty, rows, cols, snakes };
+    }
+
+    function generateSolvableLevel(levelNum, difficulty = 'Normal', customRng = null) {
+      const rand = customRng || Math.random;
+      try {
+        const startTime = performance.now();
+        const params = getLevelDifficultyParams(levelNum, difficulty);
+        const {
+          cols,
+          rows,
+          minSnakeLen,
+          maxSnakeLen,
+          turnWeight,
+          rayOverlapAllowance,
+          candidateRuns
+        } = params;
+        const totalCells = rows * cols;
+        const timeBudgetMs = totalCells >= 300 ? 170 : 130;
+
+        let bestSnakes = null;
+        let bestScore = -Infinity;
+
+        for (let run = 0; run < candidateRuns; run++) {
+          if (performance.now() - startTime > timeBudgetMs && bestSnakes) break;
+
+          const grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+          const reserved = Array.from({ length: rows }, () => Array(cols).fill(0));
+          const snakes = [];
+          let nextId = 1;
+
+          const isFreeCell = (x, y) =>
+            x >= 0 && x < cols && y >= 0 && y < rows && grid[y][x] === 0;
+
+          const markExitRayReserved = (hx, hy, dir) => {
+            let cx = hx + dir.dx;
+            let cy = hy + dir.dy;
+            while (cx >= 0 && cx < cols && cy >= 0 && cy < rows) {
+              reserved[cy][cx]++;
+              cx += dir.dx;
+              cy += dir.dy;
+            }
+          };
+
+          const maxSteps = totalCells * 3;
+          for (let step = 0; step < maxSteps; step++) {
+            const freeCells = [];
+            for (let y = 0; y < rows; y++) {
+              for (let x = 0; x < cols; x++) {
+                if (grid[y][x] === 0) freeCells.push({ x, y });
+              }
+            }
+            if (freeCells.length < minSnakeLen) break;
+
+            freeCells.sort((a, b) => (reserved[a.y][a.x] - reserved[b.y][b.x]) + (rand() - 0.5) * 1.4);
+            const head = freeCells[0];
+
+            const scoredDirs = DIRS.map(d => {
+              let rayFreeCount = 0;
+              let rayHeat = 0;
+              let cx = head.x + d.dx;
+              let cy = head.y + d.dy;
+              while (cx >= 0 && cx < cols && cy >= 0 && cy < rows) {
+                if (grid[cy][cx] === 0) rayFreeCount++;
+                rayHeat += reserved[cy][cx];
+                cx += d.dx;
+                cy += d.dy;
+              }
+              return {
+                dir: d,
+                cost: rayFreeCount * (1.25 - rayOverlapAllowance * 0.65) + rayHeat * 0.4 + rand() * 1.6
+              };
+            }).sort((a, b) => a.cost - b.cost);
+
+            let placedSnake = false;
+            for (const dirEntry of scoredDirs) {
+              const chosenDir = dirEntry.dir;
+              const bx = head.x - chosenDir.dx;
+              const by = head.y - chosenDir.dy;
+              if (!isFreeCell(bx, by)) continue;
+
+              const targetLen = minSnakeLen + Math.floor(rand() * (maxSnakeLen - minSnakeLen + 1));
+              const path = [{ x: bx, y: by }, { x: head.x, y: head.y }];
+              const localVisited = new Set([`${head.x},${head.y}`, `${bx},${by}`]);
+              let prevDir = { dx: -chosenDir.dx, dy: -chosenDir.dy };
+
+              while (path.length < targetLen) {
+                const tail = path[0];
+                const neighbors = DIRS
+                  .map(d => {
+                    const nx = tail.x + d.dx;
+                    const ny = tail.y + d.dy;
+                    if (!isFreeCell(nx, ny) || localVisited.has(`${nx},${ny}`)) return null;
+                    const isTurn = !(d.dx === prevDir.dx && d.dy === prevDir.dy);
+                    const heatPenalty = 1 + reserved[ny][nx] * (1.2 - rayOverlapAllowance * 0.7);
+                    const weight = (isTurn ? turnWeight : 1.0) / Math.max(0.35, heatPenalty);
+                    return { nx, ny, dir: d, weight };
+                  })
+                  .filter(Boolean);
+
+                if (neighbors.length === 0) break;
+                const totalW = neighbors.reduce((s, n) => s + n.weight, 0);
+                let r = rand() * totalW;
+                let pick = neighbors[0];
+                for (const n of neighbors) {
+                  r -= n.weight;
+                  if (r <= 0) {
+                    pick = n;
+                    break;
+                  }
+                }
+                path.unshift({ x: pick.nx, y: pick.ny });
+                localVisited.add(`${pick.nx},${pick.ny}`);
+                prevDir = pick.dir;
+              }
+
+              if (path.length >= minSnakeLen) {
+                const id = nextId++;
+                path.forEach(p => { grid[p.y][p.x] = id; });
+                const candidate = {
+                  id,
+                  cells: path,
+                  dir: chosenDir,
+                  colorSlot: 0,
+                  state: 'idle',
+                  animProgress: 0,
+                  shakeTimer: 0,
+                  hintPulse: 0
+                };
+                snakes.push(candidate);
+
+                if (verifyBoardSolvable(snakes, rows, cols, minSnakeLen)) {
+                  markExitRayReserved(head.x, head.y, chosenDir);
+                  placedSnake = true;
+                  break;
+                } else {
+                  snakes.pop();
+                  path.forEach(p => { grid[p.y][p.x] = 0; });
+                }
+              }
+            }
+
+            if (!placedSnake) {
+              reserved[head.y][head.x] += 3;
+            }
+          }
+
+          let extendedAny = true;
+          while (extendedAny && performance.now() - startTime <= timeBudgetMs) {
+            extendedAny = false;
+            const shuffledSnakes = [...snakes].sort(() => rand() - 0.5);
+            for (const s of shuffledSnakes) {
+              const tail = s.cells[0];
+              const adjEmpty = DIRS
+                .map(d => ({ x: tail.x + d.dx, y: tail.y + d.dy }))
+                .filter(p => isFreeCell(p.x, p.y))
+                .sort(() => rand() - 0.5);
+
+              for (const cand of adjEmpty) {
+                s.cells.unshift(cand);
+                grid[cand.y][cand.x] = s.id;
+                if (verifyBoardSolvable(snakes, rows, cols, minSnakeLen)) {
+                  extendedAny = true;
+                  break;
+                } else {
+                  s.cells.shift();
+                  grid[cand.y][cand.x] = 0;
+                }
+              }
+            }
+          }
+
+          for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+              if (grid[y][x] !== 0) continue;
+              if (performance.now() - startTime > timeBudgetMs) break;
+
+              const dirsShuffled = [...DIRS].sort(() => rand() - 0.5);
+              for (const d of dirsShuffled) {
+                const bx = x - d.dx;
+                const by = y - d.dy;
+                if (!isFreeCell(bx, by)) continue;
+
+                const path = [{ x: bx, y: by }, { x, y }];
+                const localVis = new Set([`${x},${y}`, `${bx},${by}`]);
+                let prevD = { dx: -d.dx, dy: -d.dy };
+
+                while (path.length < maxSnakeLen) {
+                  const t = path[0];
+                  const nextOpts = DIRS
+                    .map(nd => ({ nx: t.x + nd.dx, ny: t.y + nd.dy, dir: nd }))
+                    .filter(o => isFreeCell(o.nx, o.ny) && !localVis.has(`${o.nx},${o.ny}`))
+                    .sort((a, b) => {
+                      const aTurn = (a.dir.dx !== prevD.dx || a.dir.dy !== prevD.dy) ? 1 : 0;
+                      const bTurn = (b.dir.dx !== prevD.dx || b.dir.dy !== prevD.dy) ? 1 : 0;
+                      return (bTurn - aTurn) + (rand() - 0.5);
+                    });
+                  if (nextOpts.length === 0) break;
+                  const pick = nextOpts[0];
+                  path.unshift({ x: pick.nx, y: pick.ny });
+                  localVis.add(`${pick.nx},${pick.ny}`);
+                  prevD = pick.dir;
+                }
+
+                if (path.length >= minSnakeLen) {
+                  const id = nextId++;
+                  path.forEach(p => { grid[p.y][p.x] = id; });
+                  const candSnake = {
+                    id,
+                    cells: path,
+                    dir: d,
+                    colorSlot: 0,
+                    state: 'idle',
+                    animProgress: 0,
+                    shakeTimer: 0,
+                    hintPulse: 0
+                  };
+                  snakes.push(candSnake);
+                  if (verifyBoardSolvable(snakes, rows, cols, minSnakeLen)) {
+                    break;
+                  } else {
+                    snakes.pop();
+                    path.forEach(p => { grid[p.y][p.x] = 0; });
+                  }
+                }
+              }
+            }
+          }
+
+          let finalExtended = true;
+          while (finalExtended && performance.now() - startTime <= timeBudgetMs) {
+            finalExtended = false;
+            for (const s of snakes) {
+              const tail = s.cells[0];
+              for (const d of DIRS) {
+                const nx = tail.x + d.dx;
+                const ny = tail.y + d.dy;
+                if (isFreeCell(nx, ny)) {
+                  s.cells.unshift({ x: nx, y: ny });
+                  grid[ny][nx] = s.id;
+                  if (verifyBoardSolvable(snakes, rows, cols, minSnakeLen)) {
+                    finalExtended = true;
+                    break;
+                  } else {
+                    s.cells.shift();
+                    grid[ny][nx] = 0;
+                  }
+                }
+              }
+            }
+          }
+
+          const evalResult = evaluateBoardSolvability(snakes, rows, cols, minSnakeLen);
+          if (!evalResult || snakes.length < 4) continue;
+
+          const filledCount = snakes.reduce((acc, s) => acc + s.cells.length, 0);
+          const coverage = filledCount / totalCells;
+          let turnsCount = 0;
+          for (const s of snakes) {
+            for (let i = 2; i < s.cells.length; i++) {
+              const dx1 = s.cells[i - 1].x - s.cells[i - 2].x;
+              const dy1 = s.cells[i - 1].y - s.cells[i - 2].y;
+              const dx2 = s.cells[i].x - s.cells[i - 1].x;
+              const dy2 = s.cells[i].y - s.cells[i - 1].y;
+              if (dx1 !== dx2 || dy1 !== dy2) turnsCount++;
+            }
+          }
+
+          const bottleneckBonus = Math.max(0, 6 - evalResult.firstWaveClearCount) * 8;
+          const score = coverage * 120 + evalResult.waves * 18 + turnsCount * 1.5 + bottleneckBonus;
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestSnakes = snakes;
+          }
+        }
+
+        if (!bestSnakes || bestSnakes.length < 4) {
+          return createFallbackBoard(levelNum, difficulty);
+        }
+
+        assignSnakeColors(bestSnakes, rows, cols);
+        return {
+          level: levelNum,
+          difficulty,
+          rows,
+          cols,
+          snakes: bestSnakes
+        };
+      } catch (err) {
+        return createFallbackBoard(levelNum, difficulty);
+      }
+    }
+
+    const SAVE_STORAGE_KEY = 'tangled_snakes_save_v4';
+    const META_STORAGE_KEY = 'tangled_snakes_meta_v4';
+    const MAX_POWERUP = 3;
+
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const elSplashScreen = document.getElementById('splash-screen');
+    const elLevelTitle = document.getElementById('level-title');
+    const elWagerActivePill = document.getElementById('wager-active-pill');
+    const elHudStarsDisplay = document.getElementById('hud-stars-display');
+    const elHudTimerDisplay = document.getElementById('hud-timer-display');
+    const elHudBestDisplay = document.getElementById('hud-best-display');
+    const elHudXpLevelLabel = document.getElementById('hud-xp-level-label');
+    const elHudXpFill = document.getElementById('hud-xp-fill');
+    const elHudXpText = document.getElementById('hud-xp-text');
+
+    const elRemainingCount = document.getElementById('remaining-count');
+    const elRemainingIconSnake = document.getElementById('remaining-icon-snake');
+    const elRemainingIconArrow = document.getElementById('remaining-icon-arrow');
+    const elHeartsRow = document.getElementById('hearts-row');
+    const elBtnWager = document.getElementById('btn-wager');
+    const elBtnDifficulty = document.getElementById('btn-difficulty');
+    const elSettingsToggleDiff = document.getElementById('settings-toggle-difficulty');
+    const elSettingsToggleStyle = document.getElementById('settings-toggle-style');
+    const elSettingsTogglePalette = document.getElementById('settings-toggle-palette');
+
+    const elBtnHint = document.getElementById('btn-hint');
+    const elBtnUndo = document.getElementById('btn-undo');
+    const elBtnRuler = document.getElementById('btn-ruler');
+    const elHintBadge = document.getElementById('hint-badge');
+    const elUndoBadge = document.getElementById('undo-badge');
+    const elRulerBadge = document.getElementById('ruler-badge');
+    const elRulerDot = document.getElementById('ruler-status-dot');
+    const elComboBanner = document.getElementById('combo-banner');
+    const elToast = document.getElementById('toast');
+
+    const modalWin = document.getElementById('modal-win');
+    const modalLose = document.getElementById('modal-lose');
+    const modalSettings = document.getElementById('modal-settings');
+    const modalShop = document.getElementById('modal-shop');
+    const modalLevels = document.getElementById('modal-levels');
+
+    const state = {
+      gameMode: 'campaign',
+      level: 1,
+      endlessWave: 1,
+      maxUnlockedLevel: 15,
+      difficulty: 'Normal',
+      pieceStyle: 'emerald',
+      paletteMode: 'color',
+      stars: 0,
+      xp: 0,
+      playerRankLevel: 1,
+      unlockedSkins: ['emerald'],
+      unlockedPalettes: ['color', 'bw'],
+      dailyStreak: 0,
+      bestDailyStreak: 0,
+      lastDailyCompletedDate: '',
+      dailyBestTimeSec: null,
+      endlessBestWave: 1,
+      levelBestTimes: {},
+      wagerActive: false,
+      hasStartedGame: false,
+      hearts: 3,
+      maxHearts: 3,
+      hints: 2,
+      undos: 2,
+      rulers: 2,
+      hintEscapeProgress: 0,
+      undoEscapeProgress: 0,
+      rulerEscapeProgress: 0,
+      rulerActive: false,
+      hintSnakeId: null,
+      comboCount: 0,
+      lastClearTimestamp: 0,
+      levelElapsedSec: 0,
+      timerRunning: false,
+      undoHistory: [],
+      screenShakeTimer: 0,
+      showDots: true,
+      vibrationEnabled: true,
+      board: null,
+      initialBoardSnapshot: null,
+      particles: [],
+      collisionFlashes: [],
+      camera: { scale: 1, offsetX: 0, offsetY: 0 },
+      pointer: {
+        isDown: false,
+        startX: 0,
+        startY: 0,
+        moved: false,
+        hoveredSnakeId: null
+      },
+      lastTimestamp: 0
+    };
+
+    let toastTimer = null;
+    function showToast(msg) {
+      if (!elToast) return;
+      elToast.textContent = msg;
+      elToast.classList.remove('opacity-0');
+      elToast.classList.add('opacity-100');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        elToast.classList.remove('opacity-100');
+        elToast.classList.add('opacity-0');
+      }, 2100);
+    }
+
+    let comboTimer = null;
+    function showComboBanner(combo) {
+      if (!elComboBanner || combo < 2) return;
+      const labels = [
+        '',
+        '',
+        '2x CASCADE!',
+        '3x FLOW STREAK!',
+        '4x UNSTOPPABLE!',
+        '5x MASTERMIND!'
+      ];
+      elComboBanner.textContent = combo >= 6 ? `${combo}x GODLIKE CHAIN!` : labels[combo];
+      elComboBanner.classList.remove('hidden', 'combo-anim');
+      void elComboBanner.offsetWidth;
+      elComboBanner.classList.add('combo-anim');
+      if (comboTimer) clearTimeout(comboTimer);
+      comboTimer = setTimeout(() => {
+        elComboBanner.classList.add('hidden');
+      }, 1150);
+    }
+
+    function triggerHapticBump() {
+      if (!state.vibrationEnabled) return;
+      try {
+        if (navigator && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(45);
+        }
+      } catch (e) {}
+    }
+
+    function getXpNeededForRank(rank) {
+      return rank * 150;
+    }
+
+    function addPlayerXp(amount) {
+      state.xp += amount;
+      let needed = getXpNeededForRank(state.playerRankLevel);
+      let leveledUp = false;
+      while (state.xp >= needed) {
+        state.xp -= needed;
+        state.playerRankLevel += 1;
+        needed = getXpNeededForRank(state.playerRankLevel);
+        leveledUp = true;
+      }
+      if (leveledUp) {
+        sfx.playWin();
+        showToast(`🎉 Rank Up! Reached Rank ${state.playerRankLevel}!`);
+      }
+    }
+
+    function saveMetaPrefs() {
+      safeSetStorage(META_STORAGE_KEY, JSON.stringify({
+        pieceStyle: state.pieceStyle,
+        paletteMode: state.paletteMode,
+        stars: state.stars,
+        xp: state.xp,
+        playerRankLevel: state.playerRankLevel,
+        unlockedSkins: state.unlockedSkins,
+        unlockedPalettes: state.unlockedPalettes,
+        dailyStreak: state.dailyStreak,
+        bestDailyStreak: state.bestDailyStreak,
+        lastDailyCompletedDate: state.lastDailyCompletedDate,
+        dailyBestTimeSec: state.dailyBestTimeSec,
+        endlessBestWave: state.endlessBestWave,
+        levelBestTimes: state.levelBestTimes,
+        maxUnlockedLevel: state.maxUnlockedLevel
+      }));
+    }
+
+    function loadMetaPrefs() {
+      try {
+        const raw = safeGetStorage(META_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed.stars === 'number') state.stars = Math.max(0, parsed.stars);
+        if (typeof parsed.xp === 'number') state.xp = Math.max(0, parsed.xp);
+        if (typeof parsed.playerRankLevel === 'number') state.playerRankLevel = Math.max(1, parsed.playerRankLevel);
+        if (Array.isArray(parsed.unlockedSkins)) state.unlockedSkins = parsed.unlockedSkins;
+        if (Array.isArray(parsed.unlockedPalettes)) state.unlockedPalettes = parsed.unlockedPalettes;
+        if (parsed.pieceStyle && state.unlockedSkins.includes(parsed.pieceStyle)) {
+          state.pieceStyle = parsed.pieceStyle;
+        }
+        if (parsed.paletteMode && state.unlockedPalettes.includes(parsed.paletteMode)) {
+          state.paletteMode = parsed.paletteMode;
+        }
+        if (typeof parsed.dailyStreak === 'number') state.dailyStreak = parsed.dailyStreak;
+        if (typeof parsed.bestDailyStreak === 'number') state.bestDailyStreak = parsed.bestDailyStreak;
+        if (typeof parsed.lastDailyCompletedDate === 'string') state.lastDailyCompletedDate = parsed.lastDailyCompletedDate;
+        if (typeof parsed.dailyBestTimeSec === 'number') state.dailyBestTimeSec = parsed.dailyBestTimeSec;
+        if (typeof parsed.endlessBestWave === 'number') state.endlessBestWave = Math.max(1, parsed.endlessBestWave);
+        if (parsed.levelBestTimes && typeof parsed.levelBestTimes === 'object') state.levelBestTimes = parsed.levelBestTimes;
+        if (typeof parsed.maxUnlockedLevel === 'number') state.maxUnlockedLevel = Math.max(15, parsed.maxUnlockedLevel);
+      } catch (e) {}
+    }
+
+    function buySkin(skinId) {
+      const skin = SKIN_CATALOG.find(s => s.id === skinId);
+      if (!skin) return;
+      if (state.unlockedSkins.includes(skinId)) {
+        state.pieceStyle = skinId;
+        sfx.playSlide(2);
+        saveMetaPrefs();
+        updateShopUI();
+        updateHUD();
+        render(0);
+        return;
+      }
+      if (state.stars < skin.cost) {
+        sfx.playBump();
+        showToast(`Need ${skin.cost} ★ to unlock ${skin.name}!`);
+        return;
+      }
+      state.stars = Math.max(0, state.stars - skin.cost);
+      state.unlockedSkins.push(skinId);
+      state.pieceStyle = skinId;
+      sfx.playWin();
+      saveMetaPrefs();
+      saveGame(false);
+      updateShopUI();
+      updateHUD();
+      render(0);
+      showToast(`Unlocked ${skin.name}! (-${skin.cost} ★)`);
+    }
+
+    function buyPalette(palId) {
+      const pal = PALETTE_CATALOG[palId];
+      if (!pal) return;
+      if (state.unlockedPalettes.includes(palId)) {
+        state.paletteMode = palId;
+        sfx.playHint();
+        saveMetaPrefs();
+        updateShopUI();
+        updateHUD();
+        render(0);
+        return;
+      }
+      if (state.stars < pal.cost) {
+        sfx.playBump();
+        showToast(`Need ${pal.cost} ★ to unlock ${pal.name}!`);
+        return;
+      }
+      state.stars = Math.max(0, state.stars - pal.cost);
+      state.unlockedPalettes.push(palId);
+      state.paletteMode = palId;
+      sfx.playWin();
+      saveMetaPrefs();
+      saveGame(false);
+      updateShopUI();
+      updateHUD();
+      render(0);
+      showToast(`Unlocked ${pal.name}! (-${pal.cost} ★)`);
+    }
+
+    function updateShopUI() {
+      const shopStarsCount = document.getElementById('shop-stars-count');
+      if (shopStarsCount) shopStarsCount.textContent = state.stars;
+
+      const shopSkinGrid = document.getElementById('shop-skin-cards-grid');
+      if (shopSkinGrid) {
+        shopSkinGrid.innerHTML = SKIN_CATALOG.map(skin => {
+          const unlocked = state.unlockedSkins.includes(skin.id);
+          const selected = state.pieceStyle === skin.id;
+          return `
+            <button type="button" data-shop-skin="${skin.id}" class="w-full splash-card ${selected ? 'selected' : ''} ${!unlocked ? 'locked' : ''} rounded-2xl p-3 flex items-center justify-between text-left">
+              <div>
+                <div class="text-xs font-black text-white">${skin.name}</div>
+                <div class="text-[10px] font-semibold text-slate-400">${skin.desc}</div>
+              </div>
+              <div class="ml-2 shrink-0">
+                ${unlocked
+                  ? (selected ? '<span class="text-xs font-black text-sky-400">Equipped ✓</span>' : '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-1 rounded-lg border border-emerald-500/30">Select</span>')
+                  : `<span class="text-[11px] font-black px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/35">${skin.cost} ★</span>`
+                }
+              </div>
+            </button>
+          `;
+        }).join('');
+
+        shopSkinGrid.querySelectorAll('button[data-shop-skin]').forEach(btn => {
+          btn.addEventListener('click', () => buySkin(btn.dataset.shopSkin));
+        });
+      }
+
+      const shopPalGrid = document.getElementById('shop-palette-cards-grid');
+      if (shopPalGrid) {
+        shopPalGrid.innerHTML = Object.values(PALETTE_CATALOG).map(pal => {
+          const unlocked = state.unlockedPalettes.includes(pal.id);
+          const selected = state.paletteMode === pal.id;
+          const dotsHtml = pal.colors.slice(0, 4).map(c =>
+            `<span class="w-3 h-3 rounded-full" style="background:${c}"></span>`
+          ).join('');
+          return `
+            <button type="button" data-shop-pal="${pal.id}" class="w-full splash-card ${selected ? 'selected' : ''} ${!unlocked ? 'locked' : ''} rounded-2xl p-3 flex items-center justify-between text-left">
+              <div>
+                <div class="flex items-center gap-1.5 mb-1">${dotsHtml}</div>
+                <div class="text-xs font-black text-white">${pal.name}</div>
+              </div>
+              <div class="ml-2 shrink-0">
+                ${unlocked
+                  ? (selected ? '<span class="text-xs font-black text-sky-400">Equipped ✓</span>' : '<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-1 rounded-lg border border-emerald-500/30">Select</span>')
+                  : `<span class="text-[11px] font-black px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/35">${pal.cost} ★</span>`
+                }
+              </div>
+            </button>
+          `;
+        }).join('');
+
+        shopPalGrid.querySelectorAll('button[data-shop-pal]').forEach(btn => {
+          btn.addEventListener('click', () => buyPalette(btn.dataset.shopPal));
+        });
+      }
+    }
+
+    function normalizeSnakeGeometry(rawSnake, fallbackIdx = 0) {
+      if (!rawSnake || !Array.isArray(rawSnake.cells) || rawSnake.cells.length < 2) return null;
+      const cells = rawSnake.cells
+        .filter(c => c && Number.isFinite(c.x) && Number.isFinite(c.y))
+        .map(c => ({ x: Math.round(c.x), y: Math.round(c.y) }));
+      if (cells.length < 2) return null;
+
+      const head = cells[cells.length - 1];
+      const neck = cells[cells.length - 2];
+      const dx = head.x - neck.x;
+      const dy = head.y - neck.y;
+
+      let dir = null;
+      if (Math.abs(dx) + Math.abs(dy) === 1) {
+        dir = DIRS.find(d => d.dx === dx && d.dy === dy) || { dx, dy, name: '' };
+      } else if (rawSnake.dir && Math.abs(rawSnake.dir.dx) + Math.abs(rawSnake.dir.dy) === 1) {
+        dir = DIRS.find(d => d.dx === rawSnake.dir.dx && d.dy === rawSnake.dir.dy) || {
+          dx: rawSnake.dir.dx,
+          dy: rawSnake.dir.dy,
+          name: rawSnake.dir.name || ''
+        };
+      }
+      if (!dir) return null;
+
+      return {
+        id: rawSnake.id || (fallbackIdx + 1),
+        cells,
+        dir,
+        colorSlot: typeof rawSnake.colorSlot === 'number' ? rawSnake.colorSlot : (fallbackIdx % 10),
+        state: 'idle',
+        animProgress: 0,
+        shakeTimer: 0,
+        hintPulse: 0
+      };
+    }
+
+    function cloneBoardData(board) {
+      if (!board || !Array.isArray(board.snakes)) return null;
+      const normalized = board.snakes
+        .map((s, idx) => normalizeSnakeGeometry(s, idx))
+        .filter(Boolean);
+      if (normalized.length === 0) return null;
+      return {
+        level: board.level,
+        difficulty: board.difficulty,
+        rows: board.rows,
+        cols: board.cols,
+        snakes: normalized
+      };
+    }
+
+    function deserializeBoard(savedData) {
+      if (!savedData || !savedData.grid || !Array.isArray(savedData.remainingSnakes)) {
+        return null;
+      }
+      const validSnakes = savedData.remainingSnakes
+        .map((s, idx) => normalizeSnakeGeometry(s, idx))
+        .filter(Boolean);
+
+      if (validSnakes.length === 0) return null;
+
+      return {
+        level: savedData.level,
+        difficulty: savedData.difficulty === 'Hard' ? 'Hard' : 'Normal',
+        rows: savedData.grid.rows,
+        cols: savedData.grid.cols,
+        snakes: validSnakes
+      };
+    }
+
+    function saveGame(notify = false) {
+      saveMetaPrefs();
+      if (!state.board || state.gameMode !== 'campaign') return false;
+      try {
+        const remainingSnakes = state.board.snakes
+          .filter(s => s.state !== 'exited')
+          .map(s => ({
+            id: s.id,
+            cells: s.cells.map(c => ({ x: c.x, y: c.y })),
+            dir: { dx: s.dir.dx, dy: s.dir.dy, name: s.dir.name || '' },
+            colorSlot: s.colorSlot
+          }));
+
+        const payload = {
+          level: state.level,
+          maxUnlockedLevel: state.maxUnlockedLevel,
+          difficulty: state.difficulty,
+          wagerActive: state.wagerActive,
+          hasStartedGame: state.hasStartedGame,
+          hearts: state.hearts,
+          hints: Math.min(MAX_POWERUP, Math.max(0, state.hints)),
+          undos: Math.min(MAX_POWERUP, Math.max(0, state.undos)),
+          rulers: Math.min(MAX_POWERUP, Math.max(0, state.rulers)),
+          hintEscapeProgress: Math.min(9, Math.max(0, state.hintEscapeProgress)),
+          undoEscapeProgress: Math.min(11, Math.max(0, state.undoEscapeProgress)),
+          rulerEscapeProgress: Math.min(14, Math.max(0, state.rulerEscapeProgress)),
+          levelElapsedSec: state.levelElapsedSec,
+          showDots: state.showDots,
+          vibrationEnabled: state.vibrationEnabled,
+          soundEnabled: sfx.enabled,
+          grid: {
+            rows: state.board.rows,
+            cols: state.board.cols
+          },
+          remainingSnakes,
+          initialSnapshot: state.initialBoardSnapshot
+        };
+
+        safeSetStorage(SAVE_STORAGE_KEY, JSON.stringify(payload));
+        if (notify) showToast('Game Saved!');
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function loadSavedGameData() {
+      try {
+        const raw = safeGetStorage(SAVE_STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function restoreSavedGame(savedData, showBanner = true) {
+      if (!savedData) return false;
+
+      state.gameMode = 'campaign';
+      state.level = savedData.level;
+      state.maxUnlockedLevel = Math.max(state.maxUnlockedLevel, savedData.maxUnlockedLevel || savedData.level);
+      state.difficulty = savedData.difficulty === 'Hard' ? 'Hard' : 'Normal';
+      state.wagerActive = Boolean(savedData.wagerActive);
+      state.hasStartedGame = Boolean(savedData.hasStartedGame);
+
+      state.maxHearts = 3;
+      state.hearts = typeof savedData.hearts === 'number' && savedData.hearts > 0
+        ? Math.min(state.maxHearts, savedData.hearts)
+        : state.maxHearts;
+      state.hints = Math.min(MAX_POWERUP, Math.max(0, savedData.hints ?? 2));
+      state.undos = Math.min(MAX_POWERUP, Math.max(0, savedData.undos ?? 2));
+      state.rulers = Math.min(MAX_POWERUP, Math.max(0, savedData.rulers ?? 2));
+      
+      // Hard mode rule: disable Hints and Rulers
+      if (state.difficulty === 'Hard') {
+        state.hints = 0;
+        state.rulers = 0;
+      }
+
+      state.hintEscapeProgress = Math.min(9, Math.max(0, savedData.hintEscapeProgress ?? 0));
+      state.undoEscapeProgress = Math.min(11, Math.max(0, savedData.undoEscapeProgress ?? 0));
+      state.rulerEscapeProgress = Math.min(14, Math.max(0, savedData.rulerEscapeProgress ?? 0));
+      state.levelElapsedSec = typeof savedData.levelElapsedSec === 'number' ? savedData.levelElapsedSec : 0;
+      state.timerRunning = true;
+      state.rulerActive = false;
+      state.hintSnakeId = null;
+      state.undoHistory = [];
+
+      if (typeof savedData.showDots === 'boolean') {
+        state.showDots = savedData.showDots;
+        syncToggleButtonUI(document.getElementById('toggle-dots'), state.showDots);
+      }
+      if (typeof savedData.vibrationEnabled === 'boolean') {
+        state.vibrationEnabled = savedData.vibrationEnabled;
+        syncToggleButtonUI(document.getElementById('toggle-vibe'), state.vibrationEnabled);
+      }
+      if (typeof savedData.soundEnabled === 'boolean') {
+        sfx.enabled = savedData.soundEnabled;
+        syncToggleButtonUI(document.getElementById('toggle-sound'), sfx.enabled);
+      }
+
+      if (!Array.isArray(savedData.remainingSnakes) || savedData.remainingSnakes.length === 0) {
+        startLevel(savedData.level + 1, false);
+        return true;
+      }
+
+      state.particles = [];
+      state.collisionFlashes = [];
+      state.camera = { scale: 1, offsetX: 0, offsetY: 0 };
+
+      const deserialized = deserializeBoard(savedData);
+      if (!deserialized || !verifyBoardSolvable(deserialized.snakes, deserialized.rows, deserialized.cols, 2)) {
+        startLevel(savedData.level || 1, false);
+        return true;
+      }
+      state.board = deserialized;
+
+      state.initialBoardSnapshot = savedData.initialSnapshot
+        ? cloneBoardData(savedData.initialSnapshot)
+        : cloneBoardData(state.board);
+
+      closeAllModals();
+      updateHUD();
+      if (showBanner) {
+        showToast(`Resumed Level ${state.level}`);
+      }
+      return true;
+    }
+
+    function loadGame() {
+      loadMetaPrefs();
+      const savedSession = loadSavedGameData();
+      const isValidSave =
+        savedSession &&
+        typeof savedSession.level === 'number' &&
+        savedSession.grid &&
+        typeof savedSession.grid.cols === 'number' &&
+        typeof savedSession.grid.rows === 'number' &&
+        Array.isArray(savedSession.remainingSnakes) &&
+        savedSession.remainingSnakes.length > 0;
+
+      if (isValidSave && restoreSavedGame(savedSession, false)) {
+        return true;
+      }
+      startLevel(1, false);
+      return false;
+    }
+
+    function clearSavedProgress() {
+      safeRemoveStorage(SAVE_STORAGE_KEY);
+      safeRemoveStorage(META_STORAGE_KEY);
+      state.maxUnlockedLevel = 1;
+      state.stars = 0;
+      state.xp = 0;
+      state.playerRankLevel = 1;
+      state.unlockedSkins = ['emerald'];
+      state.unlockedPalettes = ['color', 'bw'];
+      state.pieceStyle = 'emerald';
+      state.paletteMode = 'color';
+      state.dailyStreak = 0;
+      state.bestDailyStreak = 0;
+      state.lastDailyCompletedDate = '';
+      state.dailyBestTimeSec = null;
+      state.endlessBestWave = 1;
+      state.levelBestTimes = {};
+      state.hints = 2;
+      state.undos = 2;
+      state.rulers = 2;
+      state.hintEscapeProgress = 0;
+      state.undoEscapeProgress = 0;
+      state.rulerEscapeProgress = 0;
+      state.rulerActive = false;
+      state.hintSnakeId = null;
+      startLevel(1, false);
+      updateShopUI();
+      showToast('All progress & personal bests reset!');
+    }
+
+    function startDailyChallenge() {
+      state.gameMode = 'daily';
+      state.wagerActive = false;
+      state.hasStartedGame = false;
+      state.difficulty = 'Normal';
+      state.maxHearts = 3;
+      state.hearts = 3;
+      state.hints = 2;
+      state.rulers = 2;
+      state.rulerActive = false;
+      state.hintSnakeId = null;
+      state.undoHistory = [];
+      state.comboCount = 0;
+      state.levelElapsedSec = 0;
+      state.timerRunning = true;
+      state.particles = [];
+      state.collisionFlashes = [];
+
+      const todayStr = getTodayDateString();
+      const rng = createMulberry32(hashDateSeed(`daily_${todayStr}`));
+      state.board = generateSolvableLevel(28, 'Normal', rng);
+      state.initialBoardSnapshot = cloneBoardData(state.board);
+
+      closeAllModals();
+      updateHUD();
+      showToast(`Daily Puzzle (${todayStr})`);
+    }
+
+    function startEndlessMode(waveNum = 1, keepHearts = false) {
+      state.gameMode = 'endless';
+      state.endlessWave = waveNum;
+      state.wagerActive = false;
+      state.hasStartedGame = false;
+      state.maxHearts = 3;
+      if (!keepHearts) {
+        state.hearts = 3;
+        state.levelElapsedSec = 0;
+      } else {
+        state.hearts = Math.min(state.maxHearts, Math.max(1, state.hearts));
+      }
+      
+      if (state.difficulty === 'Hard') {
+        state.hints = 0;
+        state.rulers = 0;
+      }
+
+      state.rulerActive = false;
+      state.hintSnakeId = null;
+      state.undoHistory = [];
+      state.comboCount = 0;
+      state.timerRunning = true;
+      state.particles = [];
+      state.collisionFlashes = [];
+
+      const scaledLevel = Math.min(180, 6 + waveNum * 4);
+      state.board = generateSolvableLevel(scaledLevel, state.difficulty);
+      state.initialBoardSnapshot = cloneBoardData(state.board);
+
+      closeAllModals();
+      updateHUD();
+      showToast(`Endless Survival • Wave ${waveNum}`);
+    }
+
+    function startLevel(levelNum, reuseSnapshot = false) {
+      state.gameMode = 'campaign';
+      state.level = levelNum;
+      if (levelNum > state.maxUnlockedLevel) {
+        state.maxUnlockedLevel = levelNum;
+      }
+      state.wagerActive = false;
+      state.hasStartedGame = false;
+
+      state.maxHearts = 3;
+      state.hearts = 3;
+
+      if (state.difficulty === 'Hard') {
+        state.hints = 0;
+        state.rulers = 0;
+      }
+
+      state.rulerActive = false;
+      state.hintSnakeId = null;
+      state.undoHistory = [];
+      state.comboCount = 0;
+      state.levelElapsedSec = 0;
+      state.timerRunning = true;
+      state.particles = [];
+      state.collisionFlashes = [];
+      state.camera = { scale: 1, offsetX: 0, offsetY: 0 };
+
+      if (reuseSnapshot && state.initialBoardSnapshot) {
+        state.board = cloneBoardData(state.initialBoardSnapshot);
+      } else {
+        state.board = generateSolvableLevel(levelNum, state.difficulty);
+        state.initialBoardSnapshot = cloneBoardData(state.board);
+      }
+
+      if (state.board && Array.isArray(state.board.snakes)) {
+        state.board.snakes = state.board.snakes
+          .map((s, idx) => normalizeSnakeGeometry(s, idx))
+          .filter(Boolean);
+      }
+      if (!state.board || state.board.snakes.length === 0) {
+        state.board = createFallbackBoard(levelNum, state.difficulty);
+        state.initialBoardSnapshot = cloneBoardData(state.board);
+      }
+
+      closeAllModals();
+      updateHUD();
+      saveGame(false);
+    }
+
+    function updateHeartsUI() {
+      if (!elHeartsRow) return;
+      const currentMax = state.maxHearts;
+      const items = elHeartsRow.querySelectorAll('.heart-item');
+      
+      if (items.length !== currentMax) {
+        elHeartsRow.innerHTML = '';
+        for (let i = 0; i < currentMax; i++) {
+          const isAlive = i < state.hearts;
+          const heart = document.createElement('div');
+          heart.className = `heart-item ${isAlive ? '' : 'lost'}`;
+          heart.dataset.heartIndex = String(i);
+          heart.innerHTML = `
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+            </svg>
+          `;
+          elHeartsRow.appendChild(heart);
+        }
+      } else {
+        items.forEach((el, idx) => {
+          const isAlive = idx < state.hearts;
+          el.classList.toggle('lost', !isAlive);
+        });
+      }
+    }
+
+    function updatePowerupBadges() {
+      // If Hard mode, hide/disable hints and rulers
+      if (state.difficulty === 'Hard') {
+        state.hints = 0;
+        state.rulers = 0;
+      }
+
+      state.hints = Math.min(MAX_POWERUP, Math.max(0, state.hints));
+      state.undos = Math.min(MAX_POWERUP, Math.max(0, state.undos));
+      state.rulers = Math.min(MAX_POWERUP, Math.max(0, state.rulers));
+
+      if (elHintBadge) elHintBadge.textContent = `${state.hints}`;
+      if (elUndoBadge) elUndoBadge.textContent = `${state.undos}`;
+      if (elRulerBadge) elRulerBadge.textContent = `${state.rulers}`;
+
+      if (elBtnHint) {
+        elBtnHint.classList.toggle('opacity-55', state.hints === 0 && state.hintSnakeId === null);
+        elBtnHint.classList.toggle('active-tool', state.hintSnakeId !== null);
+      }
+      if (elBtnUndo) {
+        elBtnUndo.classList.toggle('opacity-55', state.undos === 0 || state.undoHistory.length === 0);
+      }
+      if (elBtnRuler) {
+        elBtnRuler.classList.toggle('opacity-55', state.rulers === 0 && !state.rulerActive);
+        elBtnRuler.classList.toggle('active-tool', state.rulerActive);
+        if (elRulerDot) elRulerDot.classList.toggle('hidden', !state.rulerActive);
+      }
+    }
+
+    function updateHUD() {
+      if (!state.board) return;
+      const isVectorSkin = state.pieceStyle === 'arrows' || state.pieceStyle === 'lasers';
+      const skinObj = SKIN_CATALOG.find(s => s.id === state.pieceStyle) || SKIN_CATALOG[0];
+      const palObj = PALETTE_CATALOG[state.paletteMode] || PALETTE_CATALOG.color;
+
+      if (elLevelTitle) {
+        if (state.gameMode === 'daily') {
+          elLevelTitle.textContent = 'Daily Puzzle';
+        } else if (state.gameMode === 'endless') {
+          elLevelTitle.textContent = `Endless W${state.endlessWave}`;
+        } else {
+          elLevelTitle.textContent = `Level ${state.level}`;
+        }
+      }
+
+      if (elWagerActivePill) {
+        elWagerActivePill.classList.toggle('hidden', !state.wagerActive);
+      }
+      if (elBtnWager) {
+        elBtnWager.classList.toggle('border-amber-400', state.wagerActive);
+        elBtnWager.classList.toggle('bg-amber-500/20', state.wagerActive);
+        elBtnWager.classList.toggle('opacity-45', state.gameMode === 'daily' || state.hasStartedGame);
+        elBtnWager.classList.toggle('pointer-events-none', state.gameMode === 'daily' || state.hasStartedGame);
+      }
+
+      if (elBtnDifficulty) {
+        elBtnDifficulty.textContent = state.gameMode === 'daily' ? 'Normal' : state.difficulty;
+        elBtnDifficulty.classList.toggle('opacity-45', state.gameMode === 'daily');
+        elBtnDifficulty.classList.toggle('pointer-events-none', state.gameMode === 'daily');
+      }
+
+      if (elHudStarsDisplay) elHudStarsDisplay.textContent = `★ ${state.stars}`;
+      if (elHudTimerDisplay) elHudTimerDisplay.textContent = formatDurationSec(state.levelElapsedSec);
+
+      const neededXp = getXpNeededForRank(state.playerRankLevel);
+      const xpPercent = Math.min(100, Math.max(0, (state.xp / neededXp) * 100));
+      if (elHudXpLevelLabel) elHudXpLevelLabel.textContent = `Rank ${state.playerRankLevel}`;
+      if (elHudXpFill) elHudXpFill.style.width = `${xpPercent}%`;
+      if (elHudXpText) elHudXpText.textContent = `${state.xp}/${neededXp} XP`;
+
+      if (elHudBestDisplay) {
+        if (state.gameMode === 'daily' && state.dailyBestTimeSec !== null) {
+          elHudBestDisplay.textContent = `• Best: ${formatDurationSec(state.dailyBestTimeSec)}`;
+          elHudBestDisplay.classList.remove('hidden');
+        } else if (state.gameMode === 'endless') {
+          elHudBestDisplay.textContent = `• Best: W${state.endlessBestWave}`;
+          elHudBestDisplay.classList.remove('hidden');
+        } else if (state.gameMode === 'campaign' && typeof state.levelBestTimes[state.level] === 'number') {
+          elHudBestDisplay.textContent = `• Best: ${formatDurationSec(state.levelBestTimes[state.level])}`;
+          elHudBestDisplay.classList.remove('hidden');
+        } else {
+          elHudBestDisplay.classList.add('hidden');
+        }
+      }
+
+      const activeSnakes = state.board.snakes.filter(s => s.state !== 'exited');
+      if (elRemainingCount) elRemainingCount.textContent = activeSnakes.length;
+      if (elRemainingIconSnake) elRemainingIconSnake.classList.toggle('hidden', isVectorSkin);
+      if (elRemainingIconArrow) elRemainingIconArrow.classList.toggle('hidden', !isVectorSkin);
+
+      if (elSettingsToggleDiff) elSettingsToggleDiff.textContent = state.difficulty;
+      if (elSettingsToggleStyle) elSettingsToggleStyle.textContent = skinObj.name;
+      if (elSettingsTogglePalette) elSettingsTogglePalette.textContent = palObj.name;
+
+      document.title = 'Snakes and Arrows';
+
+      updateHeartsUI();
+      updatePowerupBadges();
+    }
+
+    function getOccupiedSet(excludeSnakeId = null) {
+      const occupied = new Set();
+      if (!state.board) return occupied;
+      for (const s of state.board.snakes) {
+        if (s.id === excludeSnakeId) continue;
+        if (s.state === 'exiting' || s.state === 'exited') continue;
+        for (const c of s.cells) {
+          occupied.add(`${c.x},${c.y}`);
+        }
+      }
+      return occupied;
+    }
+
+    function checkSnakeClearPath(snake) {
+      const occupied = getOccupiedSet(snake.id);
+      const head = snake.cells[snake.cells.length - 1];
+      let cx = head.x + snake.dir.dx;
+      let cy = head.y + snake.dir.dy;
+      let steps = 0;
+
+      while (cx >= 0 && cx < state.board.cols && cy >= 0 && cy < state.board.rows) {
+        if (occupied.has(`${cx},${cy}`)) {
+          return { clear: false, blockerCell: { x: cx, y: cy }, steps };
+        }
+        cx += snake.dir.dx;
+        cy += snake.dir.dy;
+        steps++;
+      }
+      return { clear: true, blockerCell: null, steps };
+    }
+
+    function pushUndoSnapshot() {
+      if (!state.board) return;
+      const snap = {
+        snakes: state.board.snakes.map(s => ({
+          id: s.id,
+          cells: s.cells.map(c => ({ x: c.x, y: c.y })),
+          dir: { ...s.dir },
+          colorSlot: s.colorSlot,
+          state: s.state === 'exiting' ? 'exited' : s.state
+        })),
+        hearts: state.hearts
+      };
+      state.undoHistory.push(snap);
+      if (state.undoHistory.length > 8) state.undoHistory.shift();
+    }
+
+    function triggerUndo() {
+      if (!state.board) return;
+      if (state.undoHistory.length === 0) {
+        showToast('Nothing to undo yet!');
+        return;
+      }
+      if (state.undos <= 0) {
+        sfx.playBump();
+        showToast(`No Undos left! ${12 - state.undoEscapeProgress} more escapes for +1 Undo.`);
+        return;
+      }
+
+      const prev = state.undoHistory.pop();
+      state.undos = Math.max(0, state.undos - 1);
+      state.hearts = prev.hearts;
+      state.comboCount = 0;
+
+      state.board.snakes = prev.snakes.map(s => ({
+        id: s.id,
+        cells: s.cells.map(c => ({ x: c.x, y: c.y })),
+        dir: { ...s.dir },
+        colorSlot: s.colorSlot,
+        state: s.state === 'exited' ? 'exited' : 'idle',
+        animProgress: 0,
+        shakeTimer: 0,
+        hintPulse: 0
+      }));
+
+      sfx.playHint();
+      updateHUD();
+      saveGame(false);
+      showToast('Move undone!');
+    }
+
+    function handleSnakeTap(snake) {
+      if (!snake || snake.state === 'exiting' || snake.state === 'exited') return;
+      if (state.hearts <= 0) return;
+
+      if (!state.hasStartedGame) {
+        state.hasStartedGame = true;
+        updateHUD();
+      }
+
+      if (state.rulerActive) state.rulerActive = false;
+      if (state.hintSnakeId !== null) {
+        state.hintSnakeId = null;
+        for (const s of state.board.snakes) s.hintPulse = 0;
+      }
+
+      const result = checkSnakeClearPath(snake);
+      if (result.clear) {
+        pushUndoSnapshot();
+        snake.state = 'exiting';
+        snake.hintPulse = 0;
+
+        const now = performance.now();
+        if (now - state.lastClearTimestamp <= 2400) {
+          state.comboCount += 1;
+        } else {
+          state.comboCount = 1;
+        }
+        state.lastClearTimestamp = now;
+
+        if (state.comboCount >= 2) {
+          showComboBanner(state.comboCount);
+          state.screenShakeTimer = Math.min(0.22, 0.08 + state.comboCount * 0.02);
+        }
+
+        const progressStep = state.wagerActive ? 2 : 1;
+        state.hintEscapeProgress += progressStep;
+        state.undoEscapeProgress += progressStep;
+        state.rulerEscapeProgress += progressStep;
+
+        const earnedBadges = [];
+        if (state.hintEscapeProgress >= 10 && state.difficulty !== 'Hard') {
+          state.hintEscapeProgress %= 10;
+          if (state.hints < MAX_POWERUP) {
+            state.hints += 1;
+            earnedBadges.push('+1 Hint');
+          }
+        }
+        if (state.undoEscapeProgress >= 12) {
+          state.undoEscapeProgress %= 12;
+          if (state.undos < MAX_POWERUP) {
+            state.undos += 1;
+            earnedBadges.push('+1 Undo');
+          }
+        }
+        if (state.rulerEscapeProgress >= 15 && state.difficulty !== 'Hard') {
+          state.rulerEscapeProgress %= 15;
+          if (state.rulers < MAX_POWERUP) {
+            state.rulers += 1;
+            earnedBadges.push('+1 Ruler');
+          }
+        }
+
+        if (earnedBadges.length > 0) {
+          showToast(`${earnedBadges.join(' & ')} earned!`);
+          sfx.playHint();
+        } else {
+          sfx.playSlide(state.comboCount - 1);
+        }
+
+        updateHUD();
+        saveGame(false);
+      } else {
+        pushUndoSnapshot();
+        state.comboCount = 0;
+        snake.state = 'blocked';
+        snake.shakeTimer = 0.45;
+        state.screenShakeTimer = 0.24;
+        sfx.playBump();
+        triggerHapticBump();
+
+        if (result.blockerCell) {
+          state.collisionFlashes.push({
+            x: result.blockerCell.x,
+            y: result.blockerCell.y,
+            timer: 0.45,
+            maxTimer: 0.45
+          });
+        }
+
+        state.hearts = Math.max(0, state.hearts - 1);
+        updateHUD();
+        saveGame(false);
+
+        if (elHeartsRow) {
+          const heartEls = elHeartsRow.querySelectorAll('.heart-item');
+          if (heartEls[state.hearts]) {
+            heartEls[state.hearts].classList.remove('heart-lost-anim');
+            void heartEls[state.hearts].offsetWidth;
+            heartEls[state.hearts].classList.add('heart-lost-anim');
+          }
+        }
+
+        if (state.hearts === 0) {
+          state.timerRunning = false;
+          const loseTitle = document.getElementById('lose-title');
+          const loseSub = document.getElementById('lose-subtitle');
+          if (state.gameMode === 'endless') {
+            if (loseTitle) loseTitle.textContent = `Survived ${state.endlessWave} ${state.endlessWave === 1 ? 'Wave' : 'Waves'}!`;
+            if (loseSub) loseSub.textContent = `Personal Best: Wave ${state.endlessBestWave}. Ready for another run?`;
+          } else {
+            if (loseTitle) loseTitle.textContent = 'Out of Hearts!';
+            if (loseSub) loseSub.textContent = 'Use Undo to recover a mis-tap or check sightlines!';
+          }
+          setTimeout(() => {
+            modalLose.classList.remove('hidden');
+          }, 380);
+        } else {
+          showToast('Path blocked! Tap Undo to recover heart.');
+        }
+      }
+    }
+
+    function triggerHint() {
+      if (!state.board) return;
+      if (state.difficulty === 'Hard') {
+        showToast('Hints are disabled in Hard mode!');
+        sfx.playBump();
+        return;
+      }
+      if (state.hintSnakeId !== null) {
+        showToast('Hint already active for this turn!');
+        return;
+      }
+      if (state.hints <= 0) {
+        sfx.playBump();
+        showToast(`No Hints left! ${10 - state.hintEscapeProgress} more escapes for +1 Hint.`);
+        return;
+      }
+
+      const idleSnakes = state.board.snakes.filter(s => s.state === 'idle' || s.state === 'blocked');
+      if (idleSnakes.length === 0) return;
+
+      const solvableSnake = idleSnakes.find(s => checkSnakeClearPath(s).clear);
+      if (!solvableSnake) {
+        showToast('No clear paths found!');
+        return;
+      }
+
+      state.hints = Math.max(0, state.hints - 1);
+      state.hintSnakeId = solvableSnake.id;
+      for (const s of state.board.snakes) {
+        s.hintPulse = s.id === solvableSnake.id ? 1 : 0;
+      }
+      sfx.playHint();
+      updateHUD();
+      saveGame(false);
+      showToast('Hint active for 1 turn!');
+    }
+
+    function triggerRuler() {
+      if (!state.board) return;
+      if (state.difficulty === 'Hard') {
+        showToast('Rulers are disabled in Hard mode!');
+        sfx.playBump();
+        return;
+      }
+      if (state.rulerActive) {
+        showToast('Ruler already active for this turn!');
+        return;
+      }
+      if (state.rulers <= 0) {
+        sfx.playBump();
+        showToast(`No Rulers left! ${15 - state.rulerEscapeProgress} more escapes for +1 Ruler.`);
+        return;
+      }
+
+      state.rulers = Math.max(0, state.rulers - 1);
+      state.rulerActive = true;
+      sfx.playHint();
+      updateHUD();
+      saveGame(false);
+      showToast('Ruler active for 1 turn!');
+    }
+
+    function spawnConfetti() {
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(rect.width, 320);
+      const h = Math.max(rect.height, 360);
+      const confettiColors = getActivePaletteColors();
+      for (let i = 0; i < 85; i++) {
+        state.particles.push({
+          x: w * (0.2 + Math.random() * 0.6),
+          y: h * 0.45,
+          vx: (Math.random() - 0.5) * 420,
+          vy: -180 - Math.random() * 340,
+          size: 6 + Math.random() * 6,
+          color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+          rotation: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 10,
+          life: 1.8 + Math.random() * 0.8
+        });
+      }
+    }
+
+    function getBoardMetrics() {
+      const boardWrap = document.getElementById('board-wrap');
+      const rect = boardWrap ? boardWrap.getBoundingClientRect() : { width: 0, height: 0 };
+      const dpr = window.devicePixelRatio || 1;
+
+      const width = Math.max(rect.width || (canvas.width / dpr) || 320, 260);
+      const height = Math.max(rect.height || (canvas.height / dpr) || 340, 260);
+
+      const cols = state.board ? state.board.cols : 7;
+      const rows = state.board ? state.board.rows : 7;
+
+      const padding = cols >= 18 ? 10 : (cols >= 14 ? 14 : 20);
+      const availW = Math.max(100, width - padding * 2);
+      const availH = Math.max(100, height - padding * 2);
+
+      const cellSize = Math.min(availW / cols, availH / rows);
+      const boardW = cellSize * cols;
+      const boardH = cellSize * rows;
+
+      const camShakeX = state.screenShakeTimer > 0 ? Math.sin(state.screenShakeTimer * 85) * 4 : 0;
+      const camShakeY = state.screenShakeTimer > 0 ? Math.cos(state.screenShakeTimer * 75) * 3 : 0;
+
+      const originX = (width - boardW) / 2 + state.camera.offsetX + camShakeX;
+      const originY = (height - boardH) / 2 + state.camera.offsetY + camShakeY;
+
+      return { width, height, cellSize, boardW, boardH, originX, originY };
+    }
+
+    function computeSlitheringPolyline(snake, advanceUnits) {
+      const totalLength = snake.cells.length - 1;
+      const extraSteps = Math.ceil(advanceUnits) + 2;
+      const head = snake.cells[snake.cells.length - 1];
+
+      const fullTrack = snake.cells.map(c => ({ x: c.x, y: c.y }));
+
+      for (let i = 1; i <= extraSteps; i++) {
+        fullTrack.push({
+          x: head.x + snake.dir.dx * i,
+          y: head.y + snake.dir.dy * i
+        });
+      }
+
+      const startDist = advanceUnits;
+      const endDist = advanceUnits + totalLength;
+
+      function getPointAtDist(d) {
+        const idx = Math.floor(d);
+        const frac = d - idx;
+        if (idx < 0) return { ...fullTrack[0] };
+        if (idx >= fullTrack.length - 1) return { ...fullTrack[fullTrack.length - 1] };
+        const p0 = fullTrack[idx];
+        const p1 = fullTrack[idx + 1];
+        return {
+          x: p0.x + (p1.x - p0.x) * frac,
+          y: p0.y + (p1.y - p0.y) * frac
+        };
+      }
+
+      const pts = [];
+      pts.push(getPointAtDist(startDist));
+
+      const firstInt = Math.floor(startDist) + 1;
+      const lastInt = Math.floor(endDist);
+      for (let k = firstInt; k <= lastInt; k++) {
+        if (k >= 0 && k < fullTrack.length) {
+          pts.push({ ...fullTrack[k] });
+        }
+      }
+
+      const endPt = getPointAtDist(endDist);
+      const lastPt = pts[pts.length - 1];
+      if (Math.hypot(endPt.x - lastPt.x, endPt.y - lastPt.y) > 0.001) {
+        pts.push(endPt);
+      }
+
+      return pts;
+    }
+
+    function drawGridDots(metrics) {
+      if (!state.showDots || !state.board) return;
+      const { cellSize, originX, originY } = metrics;
+      const occupied = getOccupiedSet();
+      ctx.fillStyle = state.paletteMode === 'bw' ? '#27272A' : '#1F2638';
+      const dotRadius = Math.max(1.5, cellSize * 0.065);
+
+      for (let y = 0; y < state.board.rows; y++) {
+        for (let x = 0; x < state.board.cols; x++) {
+          if (!occupied.has(`${x},${y}`)) {
+            const px = originX + (x + 0.5) * cellSize;
+            const py = originY + (y + 0.5) * cellSize;
+            ctx.beginPath();
+            ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    function drawRulerGuides(metrics) {
+      if (!state.rulerActive || !state.board || state.difficulty === 'Hard') return;
+
+      const { cellSize, originX, originY } = metrics;
+      const occupied = getOccupiedSet();
+      const isBw = state.paletteMode === 'bw';
+
+      ctx.save();
+      ctx.lineWidth = Math.max(1.4, cellSize * 0.06);
+      ctx.setLineDash([4, 4]);
+
+      for (const snake of state.board.snakes) {
+        if (snake.state !== 'idle' && snake.state !== 'blocked') continue;
+
+        const head = snake.cells[snake.cells.length - 1];
+        const startX = originX + (head.x + 0.5 + snake.dir.dx * 0.45) * cellSize;
+        const startY = originY + (head.y + 0.5 + snake.dir.dy * 0.45) * cellSize;
+
+        let cx = head.x + snake.dir.dx;
+        let cy = head.y + snake.dir.dy;
+        let blocked = false;
+
+        while (cx >= 0 && cx < state.board.cols && cy >= 0 && cy < state.board.rows) {
+          if (occupied.has(`${cx},${cy}`)) {
+            blocked = true;
+            break;
+          }
+          cx += snake.dir.dx;
+          cy += snake.dir.dy;
+        }
+
+        const endX = originX + (cx + 0.5 - (blocked ? snake.dir.dx * 0.45 : 0)) * cellSize;
+        const endY = originY + (cy + 0.5 - (blocked ? snake.dir.dy * 0.45 : 0)) * cellSize;
+
+        if (isBw) {
+          ctx.strokeStyle = blocked ? 'rgba(148, 163, 184, 0.35)' : 'rgba(255, 255, 255, 0.78)';
+          ctx.fillStyle = blocked ? 'rgba(148, 163, 184, 0.5)' : 'rgba(255, 255, 255, 0.92)';
+        } else {
+          ctx.strokeStyle = blocked ? 'rgba(239, 68, 68, 0.42)' : 'rgba(16, 185, 129, 0.65)';
+          ctx.fillStyle = blocked ? 'rgba(239, 68, 68, 0.65)' : 'rgba(16, 185, 129, 0.85)';
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(endX, endY, Math.max(2.2, cellSize * 0.09), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawArrowHeadTip(headPt, headAngle, bodyWidth, cellSize, renderColor, isHinted, isLaser = false) {
+      ctx.save();
+      ctx.translate(headPt.x, headPt.y);
+      ctx.rotate(headAngle);
+
+      const tipForward = Math.max(bodyWidth * 0.98, cellSize * 0.37);
+      const baseBack = -Math.max(bodyWidth * 0.42, cellSize * 0.14);
+      const halfWing = Math.max(bodyWidth * 0.9, cellSize * 0.34);
+
+      ctx.fillStyle = renderColor;
+      ctx.shadowColor = renderColor;
+      ctx.shadowBlur = isLaser ? 14 : (isHinted ? 12 : 4);
+
+      ctx.beginPath();
+      ctx.moveTo(tipForward, 0);
+      ctx.lineTo(baseBack, -halfWing);
+      ctx.lineTo(baseBack + tipForward * 0.24, 0);
+      ctx.lineTo(baseBack, halfWing);
+      ctx.closePath();
+      ctx.fill();
+
+      if (isLaser) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.moveTo(tipForward * 0.72, 0);
+        ctx.lineTo(baseBack * 0.4, -halfWing * 0.42);
+        ctx.lineTo(baseBack * 0.4, halfWing * 0.42);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawSnake(snake, metrics, index = 0) {
+      if (!snake || snake.state === 'exited' || !Array.isArray(snake.cells) || snake.cells.length < 2) return;
+
+      const { cellSize, originX, originY } = metrics;
+      const skin = state.pieceStyle;
+      const isEmerald = skin === 'emerald';
+      const isClassicSnakes = skin === 'snakes';
+      const isSnakesOrEmerald = isEmerald || isClassicSnakes;
+      const isArrows = skin === 'arrows' || skin === 'lasers';
+      const isLasers = skin === 'lasers';
+      const isDragons = skin === 'dragons';
+      const isBw = state.paletteMode === 'bw';
+      const bodyWidth = Math.max(4.2, cellSize * (isArrows ? 0.30 : 0.35));
+
+      const gridPts = computeSlitheringPolyline(snake, snake.animProgress);
+      if (gridPts.length < 2) return;
+
+      let shakeX = 0;
+      let shakeY = 0;
+      if (snake.shakeTimer > 0) {
+        const t = snake.shakeTimer / 0.45;
+        const lunge = Math.sin(t * Math.PI) * (cellSize * 0.22);
+        const wobble = Math.sin(snake.shakeTimer * 52) * (cellSize * 0.09) * t;
+        shakeX = snake.dir.dx * lunge + (snake.dir.dy !== 0 ? wobble : 0);
+        shakeY = snake.dir.dy * lunge + (snake.dir.dx !== 0 ? wobble : 0);
+      }
+
+      const pxPts = gridPts.map(pt => ({
+        x: originX + (pt.x + 0.5) * cellSize + shakeX,
+        y: originY + (pt.y + 0.5) * cellSize + shakeY
+      }));
+
+      let renderColor = getDisplayColor(snake, index);
+      if (state.paletteMode === 'matrix') {
+        const matrixStripes = ['#FFFFFF', '#18181B', '#E4E4E7', '#27272A', '#FAFAFA', '#09090B', '#D4D4D8', '#3F3F46'];
+        renderColor = matrixStripes[(snake.id + index) % matrixStripes.length];
+      } else if (isEmerald) {
+        const emeraldPalette = ['#4ADE80', '#22C55E', '#10B981', '#34D399', '#059669', '#6EE7B7'];
+        renderColor = emeraldPalette[Math.abs((snake.id || 1) + index) % emeraldPalette.length];
+      }
+
+      if (snake.shakeTimer > 0) {
+        renderColor = isBw ? '#71717A' : '#FF2A4B';
+      }
+
+      const now = performance.now();
+      const headPt = pxPts[pxPts.length - 1];
+      const headAngle = Math.atan2(snake.dir.dy, snake.dir.dx);
+      const isHovered = state.pointer.hoveredSnakeId === snake.id && snake.state === 'idle';
+      const isHinted = state.hintSnakeId === snake.id && (snake.state === 'idle' || snake.state === 'blocked') && state.difficulty !== 'Hard';
+
+      ctx.save();
+      ctx.lineCap = isArrows ? 'butt' : 'round';
+      ctx.lineJoin = 'round';
+
+      if (isHinted) {
+        const pulse = 0.5 + 0.5 * Math.sin(now * 0.01);
+        ctx.save();
+        ctx.strokeStyle = isBw ? '#FFFFFF' : '#FACC15';
+        ctx.globalAlpha = 0.42 + pulse * 0.35;
+        ctx.lineWidth = Math.max(1.8, cellSize * 0.08);
+        ctx.setLineDash([5, 5]);
+        const exitEdgeX = headPt.x + snake.dir.dx * (metrics.boardW + cellSize);
+        const exitEdgeY = headPt.y + snake.dir.dy * (metrics.boardH + cellSize);
+        ctx.beginPath();
+        ctx.moveTo(headPt.x, headPt.y);
+        ctx.lineTo(exitEdgeX, exitEdgeY);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (isHinted || isHovered) {
+        const pulse = isHinted ? (0.5 + 0.5 * Math.sin(now * 0.01)) : 0;
+        ctx.save();
+        ctx.strokeStyle = isHinted ? (isBw ? '#FFFFFF' : '#FACC15') : renderColor;
+        ctx.globalAlpha = isHinted ? (0.34 + pulse * 0.28) : 0.2;
+        ctx.lineWidth = bodyWidth + cellSize * (0.26 + pulse * 0.16);
+        ctx.beginPath();
+        pxPts.forEach((p, idx) => (idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (isArrows) {
+        const shaftEndPt = {
+          x: headPt.x - snake.dir.dx * (bodyWidth * 0.22),
+          y: headPt.y - snake.dir.dy * (bodyWidth * 0.22)
+        };
+
+        ctx.save();
+        ctx.strokeStyle = renderColor;
+        ctx.shadowColor = renderColor;
+        ctx.shadowBlur = isLasers ? 14 : (isHinted ? 12 : (isBw ? 2 : 5));
+        ctx.lineWidth = bodyWidth;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(pxPts[0].x, pxPts[0].y);
+        for (let i = 1; i < pxPts.length - 1; i++) {
+          ctx.lineTo(pxPts[i].x, pxPts[i].y);
+        }
+        ctx.lineTo(shaftEndPt.x, shaftEndPt.y);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = isLasers ? 'rgba(255, 255, 255, 0.72)' : (isBw ? 'rgba(0, 0, 0, 0.26)' : 'rgba(255, 255, 255, 0.24)');
+        ctx.lineWidth = Math.max(1.2, bodyWidth * (isLasers ? 0.34 : 0.22));
+        ctx.beginPath();
+        ctx.moveTo(pxPts[0].x, pxPts[0].y);
+        for (let i = 1; i < pxPts.length - 1; i++) {
+          ctx.lineTo(pxPts[i].x, pxPts[i].y);
+        }
+        ctx.lineTo(shaftEndPt.x, shaftEndPt.y);
+        ctx.stroke();
+        ctx.restore();
+
+        drawArrowHeadTip(headPt, headAngle, bodyWidth, cellSize, renderColor, isHinted, isLasers);
+        ctx.restore();
+        return;
+      }
+
+      const tailPt = pxPts[0];
+      const nextTailPt = pxPts[1];
+      const tailSegLen = Math.hypot(nextTailPt.x - tailPt.x, nextTailPt.y - tailPt.y);
+      const taperMax = Math.min(tailSegLen, cellSize * 0.72);
+      const tailAngle = Math.atan2(nextTailPt.y - tailPt.y, nextTailPt.x - tailPt.x);
+
+      const bodyStartPt = tailSegLen > 0.001
+        ? {
+            x: tailPt.x + Math.cos(tailAngle) * taperMax,
+            y: tailPt.y + Math.sin(tailAngle) * taperMax
+          }
+        : tailPt;
+
+      ctx.save();
+      ctx.fillStyle = renderColor;
+      ctx.shadowColor = renderColor;
+      ctx.shadowBlur = isDragons ? 10 : (isHinted ? 12 : (isBw ? 2 : 5));
+      const halfThick = bodyWidth * 0.5;
+      const tipRadius = Math.max(1.1, bodyWidth * 0.12);
+      const perpX = -Math.sin(tailAngle);
+      const perpY = Math.cos(tailAngle);
+
+      ctx.beginPath();
+      ctx.moveTo(bodyStartPt.x + perpX * halfThick, bodyStartPt.y + perpY * halfThick);
+      ctx.lineTo(tailPt.x + perpX * tipRadius, tailPt.y + perpX * tipRadius);
+      ctx.arc(tailPt.x, tailPt.y, tipRadius, tailAngle + Math.PI * 0.5, tailAngle + Math.PI * 1.5);
+      ctx.lineTo(bodyStartPt.x - perpX * halfThick, bodyStartPt.y - perpY * halfThick);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = renderColor;
+      ctx.shadowColor = renderColor;
+      ctx.shadowBlur = isDragons ? 10 : (isHinted ? 12 : (isBw ? 2 : 5));
+      ctx.lineWidth = bodyWidth;
+      ctx.beginPath();
+      ctx.moveTo(bodyStartPt.x, bodyStartPt.y);
+      for (let i = 1; i < pxPts.length; i++) {
+        ctx.lineTo(pxPts[i].x, pxPts[i].y);
+      }
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = isDragons ? 'rgba(255, 255, 255, 0.42)' : (isBw ? 'rgba(0, 0, 0, 0.28)' : 'rgba(255, 255, 255, 0.24)');
+      ctx.lineWidth = Math.max(1.2, bodyWidth * (isDragons ? 0.36 : 0.28));
+      ctx.setLineDash(isDragons ? [Math.max(2, cellSize * 0.09), Math.max(2, cellSize * 0.11)] : [Math.max(1.8, cellSize * 0.08), Math.max(3.2, cellSize * 0.18)]);
+      ctx.beginPath();
+      ctx.moveTo(bodyStartPt.x, bodyStartPt.y);
+      for (let i = 1; i < pxPts.length; i++) {
+        ctx.lineTo(pxPts[i].x, pxPts[i].y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      const phase = (now * 0.0045 + snake.id * 1.37) % (Math.PI * 2);
+      const activeFlick = (isHovered || isHinted || snake.state === 'exiting');
+      const flickWave = Math.sin(phase);
+      const tongueExtension = activeFlick
+        ? (0.65 + 0.35 * Math.sin(now * 0.025))
+        : (flickWave > 0.35 ? (flickWave - 0.35) / 0.65 : 0);
+
+      if (tongueExtension > 0.05 && snake.shakeTimer <= 0) {
+        ctx.save();
+        ctx.translate(headPt.x, headPt.y);
+        ctx.rotate(headAngle);
+
+        const headFrontX = bodyWidth * 0.68;
+        const tongueLen = cellSize * 0.24 * tongueExtension;
+        const forkLen = cellSize * 0.09 * tongueExtension;
+        const forkSpread = cellSize * 0.065;
+
+        ctx.strokeStyle = isDragons ? '#FBBF24' : (isBw ? '#E2E8F0' : '#FB7185');
+        ctx.lineWidth = Math.max(1.1, cellSize * 0.042);
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(headFrontX - 1, 0);
+        ctx.lineTo(headFrontX + tongueLen, 0);
+        ctx.moveTo(headFrontX + tongueLen, 0);
+        ctx.lineTo(headFrontX + tongueLen + forkLen, -forkSpread);
+        ctx.moveTo(headFrontX + tongueLen, 0);
+        ctx.lineTo(headFrontX + tongueLen + forkLen, forkSpread);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.translate(headPt.x, headPt.y);
+      ctx.rotate(headAngle);
+
+      const headLen = bodyWidth * 0.78;
+      const headWid = bodyWidth * 0.66;
+
+      if (isDragons) {
+        ctx.strokeStyle = renderColor;
+        ctx.lineWidth = Math.max(1.6, bodyWidth * 0.16);
+        ctx.beginPath();
+        ctx.moveTo(-headLen * 0.25, -headWid * 0.65);
+        ctx.lineTo(-headLen * 1.15, -headWid * 1.15);
+        ctx.moveTo(-headLen * 0.25, headWid * 0.65);
+        ctx.lineTo(-headLen * 1.15, headWid * 1.15);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = renderColor;
+      ctx.shadowColor = renderColor;
+      ctx.shadowBlur = isDragons ? 10 : (isHinted ? 12 : (isBw ? 2 : 5));
+      ctx.beginPath();
+      ctx.moveTo(headLen, 0);
+      ctx.bezierCurveTo(headLen, -headWid * 0.68, headLen * 0.15, -headWid, -headLen * 0.45, -headWid * 0.88);
+      ctx.bezierCurveTo(-headLen * 0.88, -headWid * 0.75, -headLen * 0.88, headWid * 0.75, -headLen * 0.45, headWid * 0.88);
+      ctx.bezierCurveTo(headLen * 0.15, headWid, headLen, headWid * 0.68, headLen, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = isBw ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.18)';
+      ctx.beginPath();
+      ctx.ellipse(-headLen * 0.05, 0, headLen * 0.46, headWid * 0.42, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(9, 10, 15, 0.65)';
+      const nostrilR = Math.max(0.7, bodyWidth * 0.045);
+      ctx.beginPath();
+      ctx.arc(headLen * 0.58, -headWid * 0.22, nostrilR, 0, Math.PI * 2);
+      ctx.arc(headLen * 0.58, headWid * 0.22, nostrilR, 0, Math.PI * 2);
+      ctx.fill();
+
+      const eyeX = headLen * 0.10;
+      const eyeYOffset = headWid * 0.54;
+      const eyeRadius = Math.max(1.8, bodyWidth * 0.23);
+
+      [-eyeYOffset, eyeYOffset].forEach(ey => {
+        ctx.fillStyle = '#090A0F';
+        ctx.beginPath();
+        ctx.arc(eyeX, ey, eyeRadius * 1.18, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = isDragons ? '#FEF08A' : '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(eyeX, ey, eyeRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (snake.shakeTimer > 0) {
+          ctx.strokeStyle = '#090A0F';
+          ctx.lineWidth = Math.max(1.0, eyeRadius * 0.34);
+          const r = eyeRadius * 0.46;
+          ctx.beginPath();
+          ctx.moveTo(eyeX - r, ey - r);
+          ctx.lineTo(eyeX + r, ey + r);
+          ctx.moveTo(eyeX + r, ey - r);
+          ctx.lineTo(eyeX - r, ey + r);
+          ctx.stroke();
+        } else {
+          const pupilX = eyeX + eyeRadius * 0.34;
+          const pupilR = eyeRadius * 0.54;
+          ctx.fillStyle = '#090A0F';
+          ctx.beginPath();
+          ctx.arc(pupilX, ey, pupilR, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(pupilX - pupilR * 0.22, ey - pupilR * 0.32, Math.max(0.6, pupilR * 0.34), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      ctx.restore();
+      ctx.restore();
+    }
+
+    function handleLevelOrWaveCleared() {
+      state.timerRunning = false;
+      sfx.playWin();
+      spawnConfetti();
+
+      const clearTimeSec = Math.max(1, Math.floor(state.levelElapsedSec));
+      
+      const rawBaseStars = Math.max(1, Math.min(3, state.hearts));
+      const earnedStars = state.wagerActive ? rawBaseStars * 2 : rawBaseStars;
+      state.stars += earnedStars;
+
+      const baseXp = 40 + (state.board ? state.board.snakes.length * 5 : 30);
+      const earnedXp = state.difficulty === 'Hard' ? baseXp * 2 : baseXp;
+      addPlayerXp(earnedXp);
+
+      if (state.gameMode === 'endless') {
+        if (state.endlessWave > state.endlessBestWave) {
+          state.endlessBestWave = state.endlessWave;
+        }
+        saveMetaPrefs();
+        updateHUD();
+        showToast(`Wave ${state.endlessWave} Cleared! +${earnedStars} ★ • +${earnedXp} XP`);
+        setTimeout(() => {
+          startEndlessMode(state.endlessWave + 1, true);
+        }, 700);
+        return;
+      }
+
+      let isNewRecord = false;
+      if (state.gameMode === 'daily') {
+        const todayStr = getTodayDateString();
+        const yesterdayStr = getYesterdayDateString();
+        if (state.lastDailyCompletedDate !== todayStr) {
+          if (state.lastDailyCompletedDate === yesterdayStr) {
+            state.dailyStreak += 1;
+          } else {
+            state.dailyStreak = 1;
+          }
+          state.lastDailyCompletedDate = todayStr;
+          if (state.dailyStreak > state.bestDailyStreak) {
+            state.bestDailyStreak = state.dailyStreak;
+          }
+        }
+        if (state.dailyBestTimeSec === null || clearTimeSec < state.dailyBestTimeSec) {
+          state.dailyBestTimeSec = clearTimeSec;
+          isNewRecord = true;
+        }
+      } else {
+        state.maxUnlockedLevel = Math.max(state.maxUnlockedLevel, state.level + 1);
+        const prevBest = state.levelBestTimes[state.level];
+        if (typeof prevBest !== 'number' || clearTimeSec < prevBest) {
+          state.levelBestTimes[state.level] = clearTimeSec;
+          isNewRecord = true;
+        }
+      }
+
+      saveMetaPrefs();
+      updateHUD();
+      saveGame(false);
+
+      const starsRow = document.getElementById('win-stars-row');
+      if (starsRow) {
+        starsRow.innerHTML = [1, 2, 3].map(idx =>
+          `<span class="${idx <= rawBaseStars ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'text-slate-700'}">★</span>`
+        ).join('');
+      }
+
+      const winTitle = document.getElementById('win-title');
+      const winSub = document.getElementById('win-subtitle');
+      const winStatsPill = document.getElementById('win-stats-pill');
+      const nextBtn = document.getElementById('btn-next-level');
+
+      if (state.gameMode === 'daily') {
+        if (winTitle) winTitle.textContent = 'Daily Cleared!';
+        if (winSub) winSub.textContent = `Personal Streak: ${state.dailyStreak} Days (Best: ${state.bestDailyStreak}d)`;
+        if (nextBtn) nextBtn.textContent = 'Continue Campaign';
+      } else {
+        if (winTitle) winTitle.textContent = `Level ${state.level} Cleared!`;
+        if (winSub) winSub.textContent = `Rank ${state.playerRankLevel} (${getPlayerRank(state.playerRankLevel)})`;
+        if (nextBtn) nextBtn.textContent = 'Next Level';
+      }
+
+      if (winStatsPill) {
+        winStatsPill.textContent = `⏱ ${formatDurationSec(clearTimeSec)}${isNewRecord ? ' (NEW BEST!)' : ''} • +${earnedStars} ★ • +${earnedXp} XP`;
+      }
+
+      const rewardsEl = document.getElementById('win-rewards');
+      rewardsEl.innerHTML = `
+        <div class="flex flex-col items-center justify-center px-2 py-2 rounded-2xl bg-amber-500/15 border border-amber-400/35">
+          <span class="text-amber-300 text-xs font-extrabold">💡 ${state.hintEscapeProgress}/10</span>
+          <span class="text-[9px] font-bold text-amber-200/65 mt-0.5">Hint Progress</span>
+        </div>
+        <div class="flex flex-col items-center justify-center px-2 py-2 rounded-2xl bg-emerald-500/15 border border-emerald-400/35">
+          <span class="text-emerald-300 text-xs font-extrabold">↩️ ${state.undoEscapeProgress}/12</span>
+          <span class="text-[9px] font-bold text-emerald-200/65 mt-0.5">Undo Progress</span>
+        </div>
+        <div class="flex flex-col items-center justify-center px-2 py-2 rounded-2xl bg-indigo-500/15 border border-indigo-400/35">
+          <span class="text-indigo-300 text-xs font-extrabold">📏 ${state.rulerEscapeProgress}/15</span>
+          <span class="text-[9px] font-bold text-indigo-200/65 mt-0.5">Ruler Progress</span>
+        </div>
+      `;
+
+      setTimeout(() => {
+        modalWin.classList.remove('hidden');
+      }, 320);
+    }
+
+    let lastDisplayedSec = -1;
+    function render(dt = 0) {
+      if (!state.board || !ctx) return;
+      try {
+        if (state.timerRunning && modalWin.classList.contains('hidden') && modalLose.classList.contains('hidden') && elSplashScreen.classList.contains('hidden') && modalShop.classList.contains('hidden')) {
+          state.levelElapsedSec += dt;
+          const wholeSec = Math.floor(state.levelElapsedSec);
+          if (wholeSec !== lastDisplayedSec) {
+            lastDisplayedSec = wholeSec;
+            if (elHudTimerDisplay) elHudTimerDisplay.textContent = formatDurationSec(wholeSec);
+          }
+        }
+
+        if (state.screenShakeTimer > 0) {
+          state.screenShakeTimer = Math.max(0, state.screenShakeTimer - dt);
+        }
+
+        const dpr = window.devicePixelRatio || 1;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const metrics = getBoardMetrics();
+        const { width, height, cellSize, originX, originY } = metrics;
+
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        for (let y = 0; y < state.board.rows; y++) {
+          for (let x = 0; x < state.board.cols; x++) {
+            const px = originX + x * cellSize;
+            const py = originY + y * cellSize;
+            ctx.fillStyle = (x + y) % 2 === 0 ? '#121216' : '#1c1c24';
+            ctx.fillRect(px, py, cellSize, cellSize);
+          }
+        }
+        ctx.restore();
+
+        drawGridDots(metrics);
+        drawRulerGuides(metrics);
+
+        for (let i = state.collisionFlashes.length - 1; i >= 0; i--) {
+          const flash = state.collisionFlashes[i];
+          flash.timer -= dt;
+          if (flash.timer <= 0) {
+            state.collisionFlashes.splice(i, 1);
+            continue;
+          }
+          const progress = 1 - flash.timer / flash.maxTimer;
+          const fx = originX + (flash.x + 0.5) * cellSize;
+          const fy = originY + (flash.y + 0.5) * cellSize;
+          ctx.save();
+          ctx.strokeStyle = state.paletteMode === 'bw'
+            ? `rgba(255, 255, 255, ${(1 - progress) * 0.85})`
+            : `rgba(255, 71, 87, ${(1 - progress) * 0.85})`;
+          ctx.lineWidth = Math.max(2, cellSize * 0.08);
+          ctx.beginPath();
+          ctx.arc(fx, fy, cellSize * (0.25 + progress * 0.35), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        const slideSpeed = Math.max(18, state.board.cols * 2.4);
+        let anyJustExited = false;
+
+        for (let i = 0; i < state.board.snakes.length; i++) {
+          const snake = state.board.snakes[i];
+          if (snake.shakeTimer > 0) {
+            snake.shakeTimer = Math.max(0, snake.shakeTimer - dt);
+            if (snake.shakeTimer === 0 && snake.state === 'blocked') {
+              snake.state = 'idle';
+            }
+          }
+
+          if (snake.state === 'exiting') {
+            snake.animProgress += slideSpeed * dt;
+            const maxTravel = Math.max(state.board.cols, state.board.rows) + snake.cells.length + 2;
+            if (snake.animProgress >= maxTravel) {
+              snake.state = 'exited';
+              anyJustExited = true;
+            }
+          }
+
+          try {
+            drawSnake(snake, metrics, i);
+          } catch (snakeErr) {
+            ctx.restore();
+          }
+        }
+
+        if (anyJustExited) {
+          updateHUD();
+          saveGame(false);
+          const remaining = state.board.snakes.filter(s => s.state !== 'exited').length;
+          if (remaining === 0 && modalWin.classList.contains('hidden')) {
+            handleLevelOrWaveCleared();
+          }
+        }
+
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+          const p = state.particles[i];
+          p.life -= dt;
+          if (p.life <= 0) {
+            state.particles.splice(i, 1);
+            continue;
+          }
+          p.vy += 680 * dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.rotation += p.vRot * dt;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rotation);
+          ctx.globalAlpha = Math.min(1, p.life);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
+          ctx.restore();
+        }
+      } catch (err) {}
+    }
+
+    function loop(timestamp) {
+      if (!state.lastTimestamp) state.lastTimestamp = timestamp;
+      const dt = Math.min(0.05, (timestamp - state.lastTimestamp) / 1000);
+      state.lastTimestamp = timestamp;
+
+      render(dt);
+      requestAnimationFrame(loop);
+    }
+
+    function hitTestSnake(clientX, clientY) {
+      if (!state.board) return null;
+      const rect = canvas.getBoundingClientRect();
+      const px = clientX - rect.left;
+      const py = clientY - rect.top;
+
+      const { cellSize, originX, originY } = getBoardMetrics();
+      const gx = (px - originX) / cellSize;
+      const gy = (py - originY) / cellSize;
+
+      const cellX = Math.floor(gx);
+      const cellY = Math.floor(gy);
+
+      for (const snake of state.board.snakes) {
+        if (snake.state !== 'idle' && snake.state !== 'blocked') continue;
+        for (const c of snake.cells) {
+          if (c.x === cellX && c.y === cellY) {
+            return snake;
+          }
+        }
+      }
+
+      let closestSnake = null;
+      let minDist = 0.58;
+      for (const snake of state.board.snakes) {
+        if (snake.state !== 'idle' && snake.state !== 'blocked') continue;
+        for (const c of snake.cells) {
+          const d = Math.hypot(gx - (c.x + 0.5), gy - (c.y + 0.5));
+          if (d < minDist) {
+            minDist = d;
+            closestSnake = snake;
+          }
+        }
+      }
+
+      return closestSnake;
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      state.pointer.isDown = true;
+      state.pointer.startX = e.clientX;
+      state.pointer.startY = e.clientY;
+      state.pointer.moved = false;
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      const hovered = hitTestSnake(e.clientX, e.clientY);
+      state.pointer.hoveredSnakeId = hovered ? hovered.id : null;
+      canvas.style.cursor = hovered ? 'pointer' : 'default';
+
+      if (!state.pointer.isDown) return;
+      const dist = Math.hypot(e.clientX - state.pointer.startX, e.clientY - state.pointer.startY);
+      if (dist > 10) {
+        state.pointer.moved = true;
+      }
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+      if (!state.pointer.isDown) return;
+      state.pointer.isDown = false;
+
+      if (!state.pointer.moved) {
+        const tappedSnake = hitTestSnake(e.clientX, e.clientY);
+        if (tappedSnake) {
+          handleSnakeTap(tappedSnake);
+        }
+      }
+    });
+
+    canvas.addEventListener('pointerleave', () => {
+      state.pointer.isDown = false;
+      state.pointer.hoveredSnakeId = null;
+    });
+
+    function resizeCanvas() {
+      const boardWrap = document.getElementById('board-wrap');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = boardWrap ? boardWrap.getBoundingClientRect() : { width: 0, height: 0 };
+
+      let w = rect.width;
+      let h = rect.height;
+
+      if (w < 50 || h < 50) {
+        w = Math.max(300, Math.min(window.innerWidth || 360, 480));
+        h = Math.max(320, (window.innerHeight || 640) - 210);
+      }
+
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      render(0);
+    });
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        resizeCanvas();
+        render(0);
+      });
+      const wrapperEl = document.getElementById('board-wrap');
+      if (wrapperEl) ro.observe(wrapperEl);
+    }
+
+    function closeAllModals() {
+      modalWin.classList.add('hidden');
+      modalLose.classList.add('hidden');
+      modalSettings.classList.add('hidden');
+      modalShop.classList.add('hidden');
+      modalLevels.classList.add('hidden');
+    }
+
+    document.getElementById('splash-btn-campaign').addEventListener('click', () => {
+      sfx.init();
+      sfx.playSlide(4);
+      elSplashScreen.classList.add('hidden');
+      const savedSession = loadSavedGameData();
+      if (savedSession && Array.isArray(savedSession.remainingSnakes) && savedSession.remainingSnakes.length > 0) {
+        restoreSavedGame(savedSession, false);
+      } else {
+        startLevel(state.level, false);
+      }
+      updateHUD();
+      resizeCanvas();
+      render(0);
+    });
+
+    document.getElementById('splash-btn-daily').addEventListener('click', () => {
+      sfx.init();
+      sfx.playSlide(4);
+      elSplashScreen.classList.add('hidden');
+      startDailyChallenge();
+      updateHUD();
+      resizeCanvas();
+      render(0);
+    });
+
+    document.getElementById('splash-btn-endless').addEventListener('click', () => {
+      sfx.init();
+      sfx.playSlide(4);
+      elSplashScreen.classList.add('hidden');
+      startEndlessMode(1, false);
+      updateHUD();
+      resizeCanvas();
+      render(0);
+    });
+
+    document.getElementById('btn-hint').addEventListener('click', triggerHint);
+    document.getElementById('btn-undo').addEventListener('click', triggerUndo);
+    document.getElementById('btn-ruler').addEventListener('click', triggerRuler);
+
+    if (elBtnWager) {
+      elBtnWager.addEventListener('click', () => {
+        if (state.gameMode === 'daily') {
+          showToast('Wager disabled in Daily Puzzle!');
+          return;
+        }
+        if (state.hasStartedGame) {
+          showToast('Times two cannot be selected once the game has started!');
+          return;
+        }
+
+        state.wagerActive = !state.wagerActive;
+        // Wager no longer strips hearts!
+        sfx.playHint();
+        updateHUD();
+        saveGame(false);
+        showToast(state.wagerActive ? '🔥 2x Wager ON! (Double Stars & Progress on win)' : '2x Wager OFF');
+      });
+    }
+
+    function toggleDifficultyMode() {
+      if (state.gameMode === 'daily') {
+        showToast('Difficulty locked in Daily Puzzle!');
+        return;
+      }
+      if (state.hasStartedGame) {
+        showToast('Difficulty cannot be changed once the game has started!');
+        return;
+      }
+      state.difficulty = state.difficulty === 'Normal' ? 'Hard' : 'Normal';
+      state.maxHearts = 3;
+      state.hearts = 3;
+
+      if (state.difficulty === 'Hard') {
+        state.hints = 0;
+        state.rulers = 0;
+      } else {
+        state.hints = 2;
+        state.rulers = 2;
+      }
+
+      sfx.playSlide(2);
+      if (state.gameMode === 'endless') {
+        startEndlessMode(1, false);
+      } else {
+        startLevel(state.level, false);
+      }
+      showToast(state.difficulty === 'Hard' ? 'Mode: Hard (Double XP, 3 Hearts, No Hints/Rulers!)' : 'Mode: Normal');
+    }
+
+    function cycleUnlockedSkin() {
+      const idx = state.unlockedSkins.indexOf(state.pieceStyle);
+      state.pieceStyle = state.unlockedSkins[(idx + 1) % state.unlockedSkins.length];
+      sfx.playSlide(2);
+      saveMetaPrefs();
+      updateHUD();
+      render(0);
+      const skinObj = SKIN_CATALOG.find(s => s.id === state.pieceStyle);
+      showToast(`Skin: ${skinObj ? skinObj.name : state.pieceStyle}`);
+    }
+
+    function cycleUnlockedPalette() {
+      const idx = state.unlockedPalettes.indexOf(state.paletteMode);
+      state.paletteMode = state.unlockedPalettes[(idx + 1) % state.unlockedPalettes.length];
+      sfx.playHint();
+      saveMetaPrefs();
+      updateHUD();
+      render(0);
+      const palObj = PALETTE_CATALOG[state.paletteMode];
+      showToast(`Palette: ${palObj ? palObj.name : state.paletteMode}`);
+    }
+
+    elBtnDifficulty.addEventListener('click', toggleDifficultyMode);
+    if (elSettingsToggleDiff) elSettingsToggleDiff.addEventListener('click', toggleDifficultyMode);
+    if (elSettingsToggleStyle) elSettingsToggleStyle.addEventListener('click', cycleUnlockedSkin);
+    if (elSettingsTogglePalette) elSettingsTogglePalette.addEventListener('click', cycleUnlockedPalette);
+
+    document.getElementById('btn-next-level').addEventListener('click', () => {
+      if (state.gameMode === 'daily') {
+        startLevel(state.level, false);
+      } else {
+        startLevel(state.level + 1, false);
+      }
+    });
+
+    document.getElementById('btn-retry').addEventListener('click', () => {
+      if (state.gameMode === 'daily') {
+        startDailyChallenge();
+      } else if (state.gameMode === 'endless') {
+        startEndlessMode(1, false);
+      } else {
+        startLevel(state.level, true);
+      }
+    });
+
+    function syncToggleButtonUI(btnEl, isOn) {
+      if (!btnEl) return;
+      btnEl.classList.toggle('bg-sky-500', isOn);
+      btnEl.classList.toggle('bg-slate-700', !isOn);
+      btnEl.classList.toggle('justify-end', isOn);
+      btnEl.classList.toggle('justify-start', !isOn);
+    }
+
+    document.getElementById('btn-shop-nav').addEventListener('click', () => {
+      updateShopUI();
+      modalShop.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-close-shop').addEventListener('click', () => {
+      modalShop.classList.add('hidden');
+    });
+
+    document.getElementById('btn-settings').addEventListener('click', () => {
+      const saveLabel = document.getElementById('btn-manual-save-label');
+      if (saveLabel) saveLabel.textContent = 'Save Progress';
+      updateHUD();
+      modalSettings.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-close-settings').addEventListener('click', () => {
+      modalSettings.classList.add('hidden');
+    });
+
+    const toggleSoundBtn = document.getElementById('toggle-sound');
+    toggleSoundBtn.addEventListener('click', () => {
+      sfx.enabled = !sfx.enabled;
+      syncToggleButtonUI(toggleSoundBtn, sfx.enabled);
+      saveGame(false);
+      if (sfx.enabled) sfx.playHint();
+    });
+
+    const toggleVibeBtn = document.getElementById('toggle-vibe');
+    toggleVibeBtn.addEventListener('click', () => {
+      state.vibrationEnabled = !state.vibrationEnabled;
+      syncToggleButtonUI(toggleVibeBtn, state.vibrationEnabled);
+      saveGame(false);
+      if (state.vibrationEnabled) triggerHapticBump();
+    });
+
+    const toggleDotsBtn = document.getElementById('toggle-dots');
+    toggleDotsBtn.addEventListener('click', () => {
+      state.showDots = !state.showDots;
+      syncToggleButtonUI(toggleDotsBtn, state.showDots);
+      saveGame(false);
+    });
+
+    document.getElementById('btn-manual-save').addEventListener('click', () => {
+      const saved = saveGame(true);
+      if (saved) {
+        sfx.playHint();
+        const saveLabel = document.getElementById('btn-manual-save-label');
+        if (saveLabel) {
+          saveLabel.textContent = 'Saved ✓';
+          setTimeout(() => {
+            saveLabel.textContent = 'Save Progress';
+          }, 1600);
+        }
+      }
+    });
+
+    document.getElementById('btn-restart-level').addEventListener('click', () => {
+      if (state.gameMode === 'daily') {
+        startDailyChallenge();
+      } else if (state.gameMode === 'endless') {
+        startEndlessMode(1, false);
+      } else {
+        startLevel(state.level, true);
+      }
+    });
+
+    document.getElementById('btn-clear-save').addEventListener('click', () => {
+      clearSavedProgress();
+    });
+
+    document.getElementById('drawer-btn-daily').addEventListener('click', startDailyChallenge);
+    document.getElementById('drawer-btn-endless').addEventListener('click', () => startEndlessMode(1, false));
+
+    document.getElementById('btn-levels').addEventListener('click', () => {
+      saveGame(false);
+      const savedSession = loadSavedGameData();
+      const resumeContainer = document.getElementById('resume-save-container');
+
+      const drawerDailyBest = document.getElementById('drawer-daily-best');
+      const drawerEndlessBest = document.getElementById('drawer-endless-best');
+      if (drawerDailyBest) {
+        drawerDailyBest.textContent = `Streak: ${state.dailyStreak}d • Best: ${state.dailyBestTimeSec !== null ? formatDurationSec(state.dailyBestTimeSec) : '--'}`;
+      }
+      if (drawerEndlessBest) {
+        drawerEndlessBest.textContent = `Personal Best: Wave ${state.endlessBestWave}`;
+      }
+
+      if (savedSession && savedSession.remainingSnakes && savedSession.remainingSnakes.length > 0) {
+        const snakesLeft = savedSession.remainingSnakes.length;
+        const heartsLeft = savedSession.hearts ?? 3;
+        resumeContainer.classList.remove('hidden');
+        resumeContainer.innerHTML = `
+          <button id="btn-resume-saved-session" class="w-full p-3 rounded-2xl bg-gradient-to-r from-sky-500/20 via-indigo-500/20 to-emerald-500/20 hover:from-sky-500/30 hover:to-emerald-500/30 border border-sky-400/45 text-left transition active:scale-[0.98] shadow-lg shadow-sky-500/10">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-black text-white flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Resume Campaign Level ${savedSession.level}
+              </span>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-slate-900/90 text-sky-300 border border-slate-700/80">
+                ${savedSession.difficulty}
+              </span>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] font-bold text-slate-300">
+              <span class="text-rose-400">♥ ${heartsLeft}/3 Hearts</span>
+              <span>•</span>
+              <span class="text-emerald-300">${snakesLeft} Left</span>
+            </div>
+          </button>
+        `;
+        document.getElementById('btn-resume-saved-session').addEventListener('click', () => {
+          sfx.playSlide(3);
+          restoreSavedGame(savedSession, true);
+        });
+      } else {
+        resumeContainer.classList.add('hidden');
+        resumeContainer.innerHTML = '';
+      }
+
+      const gridEl = document.getElementById('levels-grid');
+      gridEl.innerHTML = '';
+      const totalLevels = Math.max(200, state.maxUnlockedLevel + 10);
+
+      for (let i = 1; i <= totalLevels; i++) {
+        const btn = document.createElement('button');
+        const isCurrent = state.gameMode === 'campaign' && i === state.level;
+        const hasBest = typeof state.levelBestTimes[i] === 'number';
+        const isCompleted = i < state.maxUnlockedLevel || hasBest;
+
+        btn.className = `py-2 rounded-xl font-extrabold text-xs transition active:scale-95 flex flex-col items-center justify-center ${
+          isCurrent
+            ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/30'
+            : isCompleted
+              ? 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/60'
+              : 'bg-slate-900/40 text-slate-600 border border-slate-800/40 cursor-not-allowed opacity-50'
+        }`;
+        btn.innerHTML = `<span>${i}</span>${hasBest ? `<span class="text-[9px] ${isCurrent ? 'text-slate-900' : 'text-amber-400'}">★</span>` : ''}`;
+        
+        if (isCompleted) {
+          btn.addEventListener('click', () => {
+            startLevel(i, false);
+          });
+        } else {
+          btn.addEventListener('click', () => {
+            showToast('Only completed levels can be selected!');
+            sfx.playBump();
+          });
+        }
+
+        gridEl.appendChild(btn);
+      }
+
+      modalLevels.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-close-levels').addEventListener('click', () => {
+      modalLevels.classList.add('hidden');
+    });
+
+    function initGame() {
+      try {
+        loadGame();
+        updateShopUI();
+        updateHeartsUI();
+        updatePowerupBadges();
+        resizeCanvas();
+
+        if (!state.board || !Array.isArray(state.board.snakes) || state.board.snakes.length === 0) {
+          state.board = createFallbackBoard(state.level || 1, state.difficulty || 'Normal');
+          state.initialBoardSnapshot = cloneBoardData(state.board);
+          updateHUD();
+        }
+      } catch (err) {
+        state.board = createFallbackBoard(1, 'Normal');
+        state.initialBoardSnapshot = cloneBoardData(state.board);
+        updateShopUI();
+        updateHUD();
+        resizeCanvas();
+      }
+
+      render(0);
+
+      [0, 50, 200, 500].forEach(delay => {
+        setTimeout(() => {
+          resizeCanvas();
+          render(0);
+        }, delay);
+      });
+
+      requestAnimationFrame(loop);
+    }
+
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', initGame);
+    } else {
+      initGame();
+    }
+  </script>
+</body>
+</html>
